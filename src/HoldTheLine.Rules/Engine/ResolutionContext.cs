@@ -216,7 +216,9 @@ internal sealed class ResolutionContext
         }
         else if (move > 0)
         {
-            keywords.Add(new KeywordSpec(Keyword.Swift, 1 + move)); // 裸炮移速 1, 每履带 +1 (镜像→3, S9b)
+            // 疾行=+N (0.13.0): 移速 = 1 + 疾行值, so grant 疾行 = move to keep 裸炮 1 / 每履带 +1 (1 履带→移速 2,
+            // 镜像→2 履带→移速 3, S9b). move>0 here, so the Swift value stays ≥1.
+            keywords.Add(new KeywordSpec(Keyword.Swift, move));
         }
         keywords.AddRange(switches);
         keywords.AddRange(t.ExternalKeywords);               // 外部永久授予 ∪ 模块层

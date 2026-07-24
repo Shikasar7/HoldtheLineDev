@@ -81,8 +81,15 @@ public static class RulesInfo
     /// 蓄能 2 (amplify_next). (c) 焰跃术士 (dw_flare_dancer) battlecry 蓄能 2 → a passive 引导者 marker 'extend' 1:
     /// the 薪炎 order it channels reaches +1 施法距离 (parallels deepen/discount; folded into the anchor range gate
     /// via ChannelEffectAmount). PlayerView.UnitView adds ChannelExtend (additive JSON; old snapshots → 0); client
-    /// gains a 引导+距离 status badge. DataHash changes — client + server must ship this same data + version.</remarks>
-    public const string Version = "0.12.0";
+    /// gains a 引导+距离 status badge. DataHash changes — client + server must ship this same data + version.
+    /// 0.13.0 (2026-07-24): 疾行 (Swift) 语义订正 (用户). 疾行 N is now a movement BONUS — MovementPerTurn = 1 + N
+    /// (base 1 plus the Swift value) instead of "= N". So every Swift unit gains +1 格/回合: 疾行1 1→2, 疾行2 2→3,
+    /// 疾行3 3→4. Fixes 疾行1 having been a no-op (it read as move-1, same as a normal unit), so the "御前枪骑/
+    /// 烬爆蛾/灰烬幼灵 +疾行1" grants now actually do something. Turret track speed is preserved: the 派生面板 now
+    /// grants 疾行 = 履带数 (was 1 + 履带数) so 裸炮 1 / 1 履带 2 / 镜像 3 are unchanged. Behavior-only — no card data
+    /// changes, DataHash unchanged; the 疾N badge still shows N. Server + client must ship this same version
+    /// (Hello handshake gates on it).</remarks>
+    public const string Version = "0.13.0";
 
     /// <summary>压力潮汐 start round, forwarded from the (internal) <see cref="Engine.TurnFlow"/> so the client
     /// HUD can show the tide countdown (docs/17) without hardcoding 8 and drifting from the rule. Read-only

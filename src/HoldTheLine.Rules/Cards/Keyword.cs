@@ -12,7 +12,9 @@ public enum Keyword
     /// <summary>突袭 — may attack (but not move) on the turn it is deployed.</summary>
     Assault,
 
-    /// <summary>疾行 N — movement per turn is N (Value) instead of 1.</summary>
+    /// <summary>疾行 N — a movement BONUS: movement per turn is 1 + N (base 1 plus the Swift value), so
+    /// 疾行1 → 2 格/回合, 疾行2 → 3, 疾行3 → 4. The badge still shows N (疾N). (0.13.0 用户订正: previously
+    /// "= N", which made 疾行1 a no-op; see docs/01 §5.)</summary>
     Swift,
 
     /// <summary>射程 N — attacks any cell within N (Value) orthogonal steps, over any body; takes retaliation

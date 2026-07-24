@@ -36,10 +36,11 @@ public class MovementTests
     }
 
     [Fact]
-    public void Swift_2_gets_two_steps()
+    public void Swift_1_gets_two_steps()
     {
+        // 0.13.0 regression: 疾行1 used to be a no-op (moved 1, same as a normal unit); it is now +1 → 2 格.
         var state = TestKit.NewGame();
-        var scout = TestKit.Place(state, 0, "t_scout", new Cell(2, 1));
+        var scout = TestKit.Place(state, 0, "t_scout1", new Cell(2, 1));
         var resolver = TestKit.NewResolver();
 
         state = resolver.Execute(state, new MoveUnitCommand { Seat = 0, UnitEntityId = scout.EntityId, To = new Cell(2, 2) }).State!;
@@ -48,6 +49,24 @@ public class MovementTests
 
         var third = resolver.Execute(second.State!, new MoveUnitCommand { Seat = 0, UnitEntityId = scout.EntityId, To = new Cell(3, 3) });
         Assert.Equal(RuleErrorCode.NoMovementLeft, third.Error!.Code);
+    }
+
+    [Fact]
+    public void Swift_2_gets_three_steps()
+    {
+        // 疾行 is a +N bonus (0.13.0): 疾行2 → base 1 + 2 = 3 格/回合.
+        var state = TestKit.NewGame();
+        var scout = TestKit.Place(state, 0, "t_scout", new Cell(2, 1));
+        var resolver = TestKit.NewResolver();
+
+        state = resolver.Execute(state, new MoveUnitCommand { Seat = 0, UnitEntityId = scout.EntityId, To = new Cell(2, 2) }).State!;
+        var second = resolver.Execute(state, new MoveUnitCommand { Seat = 0, UnitEntityId = scout.EntityId, To = new Cell(3, 2) });
+        Assert.True(second.Success, second.Error?.Message);
+        var third = resolver.Execute(second.State!, new MoveUnitCommand { Seat = 0, UnitEntityId = scout.EntityId, To = new Cell(3, 3) });
+        Assert.True(third.Success, third.Error?.Message);
+
+        var fourth = resolver.Execute(third.State!, new MoveUnitCommand { Seat = 0, UnitEntityId = scout.EntityId, To = new Cell(3, 2) });
+        Assert.Equal(RuleErrorCode.NoMovementLeft, fourth.Error!.Code);
     }
 
     [Fact]

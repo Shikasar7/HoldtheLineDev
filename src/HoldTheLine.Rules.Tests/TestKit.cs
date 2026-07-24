@@ -23,6 +23,10 @@ public static class TestKit
     public static readonly CardDefinition Scout = new()
     { Id = "t_scout", Name = "Scout 1/1", Cost = 1, Atk = 1, Hp = 1, Keywords = [new(Keyword.Swift, 2)] };
 
+    /// <summary>疾行1: proves 疾行 is a +N bonus — a Swift-1 unit moves 2 格 (0.13.0), not 1 (which was a no-op).</summary>
+    public static readonly CardDefinition Scout1 = new()
+    { Id = "t_scout1", Name = "Scout1 1/1", Cost = 1, Atk = 1, Hp = 1, Keywords = [new(Keyword.Swift, 1)] };
+
     public static readonly CardDefinition Archer = new()
     { Id = "t_archer", Name = "Archer 2/2", Cost = 3, Atk = 2, Hp = 2, Keywords = [new(Keyword.Range, 2)] };
 
@@ -465,7 +469,7 @@ public static class TestKit
     };
 
     public static CardDatabase Db { get; } = new([
-        Vanilla, BigVanilla, Charger, Assaulter, Scout, Archer, GuardUnit, Holder,
+        Vanilla, BigVanilla, Charger, Assaulter, Scout, Scout1, Archer, GuardUnit, Holder,
         GuardianUnit, GuardianHolder, BlessUnit,
         Trampler, Sneak, Shielded, BattlecryBuffer, Bomber, Coin, ZapOrder, DrawOrder,
         Garrison, Leaper, PupToken, Medic, AllyBuffer, GrantGuardOrder, PounceOrder, GrantShieldOrder,

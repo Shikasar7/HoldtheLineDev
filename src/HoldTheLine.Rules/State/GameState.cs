@@ -138,7 +138,10 @@ public sealed class UnitInstance
         return found ? value : 0;
     }
 
-    public int MovementPerTurn => (HasKeyword(Keyword.Swift) ? KeywordValue(Keyword.Swift) : 1) + BonusMovement;
+    /// <summary>疾行 is a movement BONUS, not a replacement: base 1 + the Swift value (0.13.0 用户订正; was
+    /// "= N", which left 疾行1 granting nothing). So 疾行1 → 2 格, 疾行2 → 3, 疾行3 → 4. <see cref="BonusMovement"/>
+    /// (move_bonus 效果) stacks on top.</summary>
+    public int MovementPerTurn => (HasKeyword(Keyword.Swift) ? 1 + KeywordValue(Keyword.Swift) : 1) + BonusMovement;
 
     /// <summary>Field-by-field copy. Adding a field to this class? Add it here too — a miss is caught by
     /// CloneParityTests, which diff this against the JSON round-trip over full random playouts.</summary>
