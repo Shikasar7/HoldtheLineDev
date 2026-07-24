@@ -24,6 +24,10 @@ public static class GameConfig
     }
 
     public static bool VsAi;
+    /// <summary>新手教学关 (docs/23). Rides the single-player vs-AI plumbing (LocalGameHost + fixed view +
+    /// the AI-turn path), but BattleScene builds a fixed scripted <see cref="Rules.Engine.MatchConfig"/>
+    /// (5 HP, no shuffle, no mulligan, drip-fed hand) and drives the opponent from a script instead of the AI.</summary>
+    public static bool Tutorial;
     public static int HumanSeat;      // seat the local player controls in vs-AI mode
     public static string Deck0 = "iron_wall";
     public static string Deck1 = "wildpack_hunt";
@@ -69,6 +73,7 @@ public static class GameConfig
     {
         Online = false;
         VsAi = true;
+        Tutorial = false;
         HumanSeat = 0;
         VsAiLevel = level;
         ClearCustomDecks(); // clear first — the explicit lists below override the built-in id lookup
@@ -79,7 +84,7 @@ public static class GameConfig
 
     public static void SetHotseat()
     {
-        VsAi = false; Online = false;
+        VsAi = false; Online = false; Tutorial = false;
         HumanSeat = 0;
         Deck0 = "iron_wall";
         Deck1 = "wildpack_hunt";
@@ -95,7 +100,7 @@ public static class GameConfig
         string? deck0Builtin, IReadOnlyList<string>? deck0Cards, string? deck0Leader,
         string? deck1Builtin, IReadOnlyList<string>? deck1Cards, string? deck1Leader)
     {
-        VsAi = false; Online = false;
+        VsAi = false; Online = false; Tutorial = false;
         HumanSeat = 0;
         ClearCustomDecks(); // clear first — the explicit lists below override the built-in id lookup
         Deck0 = deck0Builtin ?? ""; Deck0CardIds = deck0Cards; Deck0Leader = deck0Leader;
@@ -109,6 +114,22 @@ public static class GameConfig
     {
         VsAi = false;
         Online = true;
+        Tutorial = false;
+        Configured = true;
+    }
+
+    /// <summary>新手教学关 (docs/23): a fixed, fully-scripted offline scenario. Rides the vs-AI plumbing
+    /// (single-player LocalGameHost + fixed camera + the AI-turn code path), but BattleScene recognises
+    /// <see cref="Tutorial"/> and builds its own scripted match + drives the opponent from a script.
+    /// The actual decks/leaders/HP come from TutorialScript, not the fields here.</summary>
+    public static void SetTutorial()
+    {
+        Online = false;
+        VsAi = true;          // engage FixedView + the RunAiTurn path (intercepted by the tutorial controller)
+        Tutorial = true;
+        HumanSeat = 0;
+        VsAiLevel = AiLevel.Easy; // unused — the opponent is scripted — but keep it sane
+        ClearCustomDecks();
         Configured = true;
     }
 }

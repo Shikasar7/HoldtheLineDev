@@ -34,6 +34,7 @@ public static class GameFactory
         {
             TurnNumber = 0,
             ActiveSeat = config.FirstSeat,
+            PressureTideStartRound = config.PressureTideStartRound,
             Rng = new DeterministicRng(config.Seed),
             Players =
             [
@@ -45,8 +46,8 @@ public static class GameFactory
         var ctx = new ResolutionContext(state, db);
         ctx.Emit(new GameStartedEvent { FirstSeat = config.FirstSeat, LeaderHp = config.LeaderHp });
 
-        BuildDeck(state, 0, config.Deck0);
-        BuildDeck(state, 1, config.Deck1);
+        BuildDeck(state, 0, config.Deck0, config.Shuffle);
+        BuildDeck(state, 1, config.Deck1, config.Shuffle);
 
         int second = 1 - config.FirstSeat;
         ctx.DrawCards(config.FirstSeat, config.OpeningHandFirst);
@@ -74,11 +75,12 @@ public static class GameFactory
         return (state, ctx.Events);
     }
 
-    private static void BuildDeck(GameState state, int seat, IReadOnlyList<string> cardIds)
+    private static void BuildDeck(GameState state, int seat, IReadOnlyList<string> cardIds, bool shuffle)
     {
         var deck = state.Player(seat).Deck;
         foreach (var id in cardIds)
             deck.Add(new CardInstance { EntityId = state.TakeEntityId(), CardId = id });
-        state.Rng.Shuffle(deck);
+        if (shuffle)
+            state.Rng.Shuffle(deck); // scripted scenarios (config.Shuffle == false) keep list order — see MatchConfig.Shuffle
     }
 }

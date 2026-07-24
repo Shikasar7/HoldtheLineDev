@@ -27,4 +27,15 @@ public sealed record MatchConfig
     /// old command log's config JSON has no such field → deserializes to false → its replay is byte-for-byte
     /// unchanged. Production entry points (MatchSession / BattleScene / Sim) set it explicitly.</summary>
     public bool MulliganEnabled { get; init; }
+
+    /// <summary>Shuffle each deck on creation. **On by default** so every normal match (and any old command
+    /// log whose JSON lacks this field → deserializes to true) is unchanged. Set to false for a scripted
+    /// scenario (新手教学关, docs/23): the deck is then drawn in list order (top of deck = last element),
+    /// giving a chosen, deterministic opening hand + draw sequence without hunting for a seed.</summary>
+    public bool Shuffle { get; init; } = true;
+
+    /// <summary>The round 压力潮汐 starts biting (see <see cref="TurnFlow.ApplyPressureTide"/>). **Default 8**
+    /// = the standard rule; the 新手教学关 (docs/23) lowers it so the tide can be demonstrated inside the short
+    /// scripted game. Additive: an old command log's config JSON lacks this field → deserializes to 8 → unchanged.</summary>
+    public int PressureTideStartRound { get; init; } = TurnFlow.PressureTideStartRound;
 }

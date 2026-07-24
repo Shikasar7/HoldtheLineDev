@@ -71,14 +71,15 @@ internal static class TurnFlow
     /// </summary>
     private static void ApplyPressureTide(ResolutionContext ctx, int seat)
     {
+        int start = ctx.State.PressureTideStartRound; // usually PressureTideStartRound; the 新手教学关 lowers it (docs/23)
         int round = (ctx.State.TurnNumber + 1) / 2;
-        if (round < PressureTideStartRound)
+        if (round < start)
             return;
         bool pressing = ctx.State.Units.Any(u => u.OwnerSeat == seat && !BoardGeometry.InOwnHalf(seat, u.Cell));
         if (pressing)
             return;
 
-        int amount = Math.Min(PressureTideMaxAmount, round - PressureTideStartRound + 1);
+        int amount = Math.Min(PressureTideMaxAmount, round - start + 1);
         ctx.Emit(new PressureTideEvent { Seat = seat, Round = round, Amount = amount });
         ctx.DamageLeader(seat, amount);
     }

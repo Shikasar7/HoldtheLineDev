@@ -183,6 +183,8 @@ public partial class BattleScene : Control, IPlaybackHost, ITargetingHost
 		_humanSeat = GameConfig.HumanSeat;
 		_aiSeat = 1 - _humanSeat;
 
+		if (GameConfig.Tutorial) { _tutorial = true; SetupTutorial(); return; } // 新手教学关 (docs/23) — see BattleScene.Tutorial.cs
+
 		// Explicit card lists (custom decks from local storage) take precedence over the built-in id lookup.
 		var (cards0, leader0) = ResolveOfflineDeck(GameConfig.Deck0, GameConfig.Deck0CardIds, GameConfig.Deck0Leader);
 		var (cards1, leader1) = ResolveOfflineDeck(GameConfig.Deck1, GameConfig.Deck1CardIds, GameConfig.Deck1Leader);
@@ -321,9 +323,12 @@ public partial class BattleScene : Control, IPlaybackHost, ITargetingHost
 		}
 
 		_oppLeaderBtn = BattleTheme.MakeButton(new Vector2(1500, 40), new Vector2(360, 96), BattleTheme.PanelDark, BattleTheme.SeatColor1, 3, 10);
-		_oppLeaderBtn.Pressed += () => OnLeaderClicked(1);
-		_oppLeaderBtn.MouseEntered += () => ShowLeaderTooltip(_oppLeaderId, _oppLeaderBtn.GetRect(), below: true);
-		_oppLeaderBtn.MouseExited += HideLeaderTooltip;
+		// desktop hover / mobile long-press → leader skill tooltip (A2). Guard the tap so a long-press
+		// to read the tooltip doesn't also fire the click.
+		var oppLeaderIntent = PointerIntent.HookPreview(_oppLeaderBtn,
+			() => ShowLeaderTooltip(_oppLeaderId, _oppLeaderBtn.GetRect(), below: true),
+			HideLeaderTooltip);
+		_oppLeaderBtn.Pressed += () => { if (oppLeaderIntent?.ConsumeRecentGesture() == true) return; OnLeaderClicked(1); };
 		BattleTheme.SetTextInsetLeft(_oppLeaderBtn, 102); // name/HP clear the round avatar (rev2: long names overlapped it)
 		// docs/18: round steel medallion behind the leader portrait (portraits are circular-crop friendly).
 		if (BattleTheme.Tex("ui/button_plate_round.png") is { } roundOpp)
@@ -356,9 +361,12 @@ public partial class BattleScene : Control, IPlaybackHost, ITargetingHost
 		_hudLayer.AddChild(_selfInfo);
 
 		_leaderPowerBtn = BattleTheme.MakeButton(new Vector2(24, 916), new Vector2(336, 68), BattleTheme.PanelDark, BattleTheme.SeatColor0, 2, 10, textured: true);
-		_leaderPowerBtn.Pressed += OnLeaderPower;
-		_leaderPowerBtn.MouseEntered += () => ShowLeaderTooltip(_selfLeaderId, _leaderPowerBtn.GetRect(), below: false);
-		_leaderPowerBtn.MouseExited += HideLeaderTooltip;
+		// desktop hover / mobile long-press → leader skill tooltip (A2). Guard so a long-press to read the
+		// tooltip doesn't also activate the (costly) leader power.
+		var powerIntent = PointerIntent.HookPreview(_leaderPowerBtn,
+			() => ShowLeaderTooltip(_selfLeaderId, _leaderPowerBtn.GetRect(), below: false),
+			HideLeaderTooltip);
+		_leaderPowerBtn.Pressed += () => { if (powerIntent?.ConsumeRecentGesture() == true) return; OnLeaderPower(); };
 		_hudLayer.AddChild(_leaderPowerBtn);
 
 		// Primary CTA: the gold plate (docs/18 rev4 — AtkColor bg routes to the batch-2 brass art).
@@ -801,10 +809,23 @@ public partial class BattleScene : Control, IPlaybackHost, ITargetingHost
 		card.SetMeta("basePos", pos);                  // restored by ClearCardHighlight
 		card.SetMeta("border", border);                // the card-type cue, re-applied after de-selecting
 		card.SetMeta("cardId", ch.CardId);             // 批次C2: diff key — 同 EntityId 换牌面时整卡重建
-		card.ButtonDown += () => BeginCardDrag(id); // tap = select, drag = play (see _Input/EndCardDrag)
-		// 悬停预览的锚点 X 读 LIVE 的 basePos(复用节点挪位后闭包里的旧坐标会失真,故不捕获局部变量)。
-		card.MouseEntered += () => { ShowCardPreview(def, ((Vector2)card.GetMeta("basePos")).X); HoverLift(card, true); };
-		card.MouseExited += () => { HideCardPreview(); HoverLift(card, false); };
+		// 悬停/预览锚点 X 读 LIVE 的 basePos(复用节点挪位后闭包里的旧坐标会失真,故不捕获局部变量)。
+		// Desktop: hover previews; press begins the drag (tap = select, drag = play; see _Input/EndCardDrag).
+		// Touch (A2): no hover — long-press previews, a finger move begins the drag, a quick tap selects.
+		if (DisplayServer.IsTouchscreenAvailable())
+		{
+			var pi = PointerIntent.Attach(card);
+			pi.LongPressed += () => { ShowCardPreview(def, ((Vector2)card.GetMeta("basePos")).X); HoverLift(card, true); };
+			pi.LongPressReleased += () => { HideCardPreview(); HoverLift(card, false); };
+			pi.Dragged += () => BeginCardDrag(id);
+			pi.Tapped += () => OnCardClicked(id);
+		}
+		else
+		{
+			card.ButtonDown += () => BeginCardDrag(id);
+			card.MouseEntered += () => { ShowCardPreview(def, ((Vector2)card.GetMeta("basePos")).X); HoverLift(card, true); };
+			card.MouseExited += () => { HideCardPreview(); HoverLift(card, false); };
+		}
 		card.AddChild(CardView.BuildFace(def, HandCardSize, backing: false));
 		return card;
 	}
@@ -1341,13 +1362,10 @@ public partial class BattleScene : Control, IPlaybackHost, ITargetingHost
 			ToggleDevCheatPanel();
 			return;
 		}
-		if (@event is InputEventKey { Pressed: true, Keycode: Key.Escape })
+		if (@event.IsActionPressed("cancel")) // Esc or right mouse (see `cancel` InputMap action)
 		{
-			GetViewport().SetInputAsHandled(); // consume Esc so it can't also reach a focused overlay button
-			// Priority: an open menu closes first; else back out of an active aim; else open the menu.
-			if (_menu.IsOpen) { ToggleGameMenu(); return; }
-			if (_targeting.Kind != TargetingKind.None && !_busy && _dragCardId is null) { OnCancelSelection(); return; }
-			ToggleGameMenu(); // open the in-match menu (继续 / 查看牌组 / 投降 / 返回菜单)
+			GetViewport().SetInputAsHandled(); // consume so it can't also reach a focused overlay button
+			HandleCancelRequest();
 			return;
 		}
 		if (_dragCardId is null)
@@ -1365,6 +1383,22 @@ public partial class BattleScene : Control, IPlaybackHost, ITargetingHost
 			GetViewport().SetInputAsHandled(); // eat the release so the cell/card button underneath doesn't also fire
 			EndCardDrag(mb.Position);
 		}
+	}
+
+	// Cancel / back: Esc or right mouse (the `cancel` InputMap action) on desktop, Android hardware/gesture
+	// back key on mobile. Priority: an open menu closes first; else back out of an active aim; else open the menu.
+	private void HandleCancelRequest()
+	{
+		if (_menu.IsOpen) { ToggleGameMenu(); return; }
+		if (_targeting.Kind != TargetingKind.None && !_busy && _dragCardId is null) { OnCancelSelection(); return; }
+		ToggleGameMenu(); // open the in-match menu (继续 / 查看牌组 / 投降 / 返回菜单)
+	}
+
+	public override void _Notification(int what)
+	{
+		// Android back button. quit_on_go_back is disabled project-wide, so we route it to the cancel/back flow.
+		if (what == NotificationWMGoBackRequest)
+			HandleCancelRequest();
 	}
 
 	private void BeginCardDrag(int cardEntityId)
@@ -1481,12 +1515,15 @@ public partial class BattleScene : Control, IPlaybackHost, ITargetingHost
 		if (cmd is PlayCardCommand { SacrificeEntityIds: null } deploy
 			&& SacrificePanel.TryShow(_overlayLayer, _cards, _sfx, _host.GetView(ViewSeat), deploy, Submit, ClearSelection)) return;
 		if (_online) { SubmitOnline(cmd); return; }
+		if (_tutorial && !TutAllowSubmit(cmd)) return; // 新手教学关: only the guided action is accepted
 		if (_busy) return;
 		_busy = true;
 		RefreshInteractable();
 
 		int seatBefore = ActiveSeat;
 		if (!await Apply(cmd)) { _busy = false; return; } // rejected, or ended (overlay shown)
+
+		if (_tutorial) { OnTutPlayerCommandApplied(); return; } // the tutorial driver decides what comes next
 
 		int seatAfter = ActiveSeat;
 		if (_vsAi && seatAfter == _aiSeat) { await RunAiTurn(); return; }        // RunAiTurn owns _busy
@@ -1973,6 +2010,7 @@ public partial class BattleScene : Control, IPlaybackHost, ITargetingHost
 
 	private void ShowWinOverlay(GameEndedEvent ended)
 	{
+		if (_tutorial) { ShowTutorialVictory(); return; } // 新手教学关 (docs/23): 自定义胜利屏,不走常规结算面板
 		if (_timerLabel != null) _timerLabel.Visible = false; // 批次C2: 倒计时节流后由这里保证终局立即收起
 		int rounds = (_host.GetView(0).TurnNumber + 1) / 2;
 		_matchEnd.Show(ended, FixedView, _humanSeat,

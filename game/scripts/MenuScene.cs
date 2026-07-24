@@ -58,11 +58,12 @@ public partial class MenuScene : Control
 
         // Main menu (docs/12 C1): one entry per mode. Uniform steel plates + a left entry icon (docs/18 §4.1),
         // no more per-button rainbow — colour is reserved for state, not identity.
-        AddButton("人机对战", "icon_vs_ai", new Vector2(660, 440), () => ShowVsAiPanel());
-        AddButton("同屏对战", "icon_hotseat", new Vector2(660, 528), ShowHotseatPanel);
-        AddButton("联机对战", "icon_online", new Vector2(660, 616), ShowOnlinePanel);
-        AddButton("卡组管理", "icon_decks", new Vector2(660, 704), () => ShowDeckManager());
-        AddButton("退出", "icon_exit", new Vector2(660, 792), () => GetTree().Quit());
+        AddButton("新手教学", "icon_vs_ai", new Vector2(660, 440), StartTutorial);
+        AddButton("人机对战", "icon_vs_ai", new Vector2(660, 528), () => ShowVsAiPanel());
+        AddButton("同屏对战", "icon_hotseat", new Vector2(660, 616), ShowHotseatPanel);
+        AddButton("联机对战", "icon_online", new Vector2(660, 704), ShowOnlinePanel);
+        AddButton("卡组管理", "icon_decks", new Vector2(660, 792), () => ShowDeckManager());
+        AddButton("退出", "icon_exit", new Vector2(660, 880), () => GetTree().Quit());
 
         AddVersionLabel();
         AddUpdateBanner();
@@ -80,8 +81,13 @@ public partial class MenuScene : Control
         // so no progress is lost.
         if (!Prefs.Entered)
             ShowLoginPage();
-        else if (!Session.Connected)
-            _ = Session.ConnectAsync(GameConfig.ServerUrl, GameConfig.Nickname);
+        else
+        {
+            if (!Session.Connected)
+                _ = Session.ConnectAsync(GameConfig.ServerUrl, GameConfig.Nickname);
+            if (!Prefs.WelcomeSeen)
+                ShowWelcomePopup(); // docs/23: first-launch welcome (existing installs see it once too)
+        }
     }
 
     /// <summary>Startup data self-check: run the three data loads once and surface any per-file failures
@@ -116,6 +122,16 @@ public partial class MenuScene : Control
         _updateBanner.Visible = false;
         _updateBanner.Pressed += () => _bannerAction?.Invoke();
         AddChild(_updateBanner);
+    }
+
+    public override void _Notification(int what)
+    {
+        // docs/19 A3.3 — Android: returning from background can leave the lobby socket dead (websocket drops
+        // while paused). If we had a live session, revive it now so the next 排位/房间 action doesn't hit an
+        // aborted socket. No-op when already connected; guarded on BoundUsername so we don't dial before login.
+        // (Desktop also delivers this on window focus-in; the reconnect is harmless there.)
+        if (what == MainLoop.NotificationApplicationResumed && Session.BoundUsername is not null && !Session.Connected)
+            _ = EnsureConnectedAsync();
     }
 
     // ---------- auto-update surface (docs/15 通道 A) ----------
@@ -367,7 +383,51 @@ public partial class MenuScene : Control
         if (offerName && Session.Connected && (string.IsNullOrWhiteSpace(GameConfig.Nickname) || GameConfig.Nickname == "玩家"))
             PromptFirstName();
         else
-            CloseOverlay();
+            CloseEntryOverlay();
+    }
+
+    /// <summary>docs/23: close the entry overlay, but on a brand-new profile show the 欢迎 popup first (it
+    /// replaces the overlay via NewPanel). Returning players (WelcomeSeen) just close as before.</summary>
+    private void CloseEntryOverlay()
+    {
+        if (!Prefs.WelcomeSeen) ShowWelcomePopup();
+        else CloseOverlay();
+    }
+
+    /// <summary>docs/23: first-launch welcome — introduces the 卡牌×战旗 premise and offers the tutorial. Shown
+    /// once (Prefs.WelcomeSeen); the tutorial is re-enterable from the main menu / 人机对战 panel afterwards.</summary>
+    private void ShowWelcomePopup()
+    {
+        var win = WindowPanelTitled(new Vector2(940, 720), "欢 迎 来 到 守 线");
+
+        var body = new RichTextLabel
+        {
+            BbcodeEnabled = true, FitContent = true, ScrollActive = false,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            Position = new Vector2(90, WinContentTop + 6),
+            Size = new Vector2(940 - 180, 300),
+        };
+        body.AddThemeFontOverride("normal_font", BattleTheme.UiFontBold);
+        body.AddThemeFontOverride("bold_font", BattleTheme.UiFontBold);
+        body.AddThemeFontSizeOverride("normal_font_size", 25);
+        body.AddThemeFontSizeOverride("bold_font_size", 25);
+        body.AddThemeColorOverride("default_color", BattleTheme.InkMain);
+        body.Text = "[center]这是一个[b]卡牌[/b]与[b]战旗[/b]交织的世界——出牌部署随从,"
+            + "再像战棋一样走位、攻击,守住你的防线。\n\n每个阵营都独具一格,尽情享受属于你的战场吧!"
+            + "\n\n要不要先花几分钟,进入[b]新手教学[/b]熟悉一下基本操作?[/center]";
+        win.AddChild(body);
+
+        win.AddChild(BtnPrimary("进入新手教学", new Vector2((940 - 540) / 2f, 470), new Vector2(540, 76),
+            () => { Prefs.WelcomeSeen = true; StartTutorial(); }));
+        win.AddChild(Btn("以后再说", new Vector2((940 - 540) / 2f, 562), new Vector2(540, 52),
+            () => { Prefs.WelcomeSeen = true; CloseOverlay(); }));
+    }
+
+    /// <summary>docs/23: launch the fixed scripted tutorial scenario (铁誓 vs 游群).</summary>
+    private void StartTutorial()
+    {
+        GameConfig.SetTutorial();
+        SceneFx.ChangeScene(this, BattlePath);
     }
 
     /// <summary>First-time display-name prompt (docs/16 §3). Skippable; changeable later in 账号.</summary>
@@ -384,10 +444,10 @@ public partial class MenuScene : Control
             if (n.Length is < 1 or > 20) { if (GodotObject.IsInstanceValid(status)) status.Text = "昵称需 1-20 个字符"; return; }
             var err = await Session.SetNameAsync(n);
             if (!GodotObject.IsInstanceValid(status)) return; // panel closed during the call
-            if (err is null) CloseOverlay(); // Prefs.Nickname is synced by the resulting Profile push
+            if (err is null) CloseEntryOverlay(); // Prefs.Nickname is synced by the resulting Profile push
             else status.Text = AuthErrorText(err);
         }));
-        win.AddChild(Btn("跳过", new Vector2(360, 288), new Vector2(250, 60), CloseOverlay));
+        win.AddChild(Btn("跳过", new Vector2(360, 288), new Vector2(250, 60), CloseEntryOverlay));
     }
 
     /// <summary>Logout (docs/16): drop the connection, wipe local credentials, and return to the login page.
@@ -1018,7 +1078,7 @@ public partial class MenuScene : Control
         var oppOpts = DeckGridOptions(withRandom: true);
         if (oppOpts.All(o => o.Key != _vsAiOppDeck)) _vsAiOppDeck = "random";
 
-        float winH = WinContentTop + 34 + GridHeight(myOpts.Count) + 26 + 34 + 52 + 26 + 34 + GridHeight(oppOpts.Count) + 36 + 76 + 16 + 52 + WinContentBottom;
+        float winH = WinContentTop + 34 + GridHeight(myOpts.Count) + 26 + 34 + 52 + 26 + 34 + GridHeight(oppOpts.Count) + 36 + 76 + 16 + 52 + 16 + 52 + WinContentBottom;
         var win = WindowPanelTitled(new Vector2(1160, winH), "人 机 对 战");
 
         float y = WinContentTop;
@@ -1051,6 +1111,7 @@ public partial class MenuScene : Control
         y += GridSelect(win, y, oppOpts, () => _vsAiOppDeck, k => _vsAiOppDeck = k) + 36;
 
         win.AddChild(BtnPrimary("开  战", new Vector2((1160 - 520) / 2f, y), new Vector2(520, 76), StartVsAiMatch)); y += 92;
+        win.AddChild(Btn("重玩新手教学", new Vector2((1160 - 520) / 2f, y), new Vector2(520, 52), StartTutorial)); y += 68;
         win.AddChild(Btn("返回", new Vector2((1160 - 520) / 2f, y), new Vector2(520, 52), CloseOverlay));
     }
 
@@ -1443,6 +1504,7 @@ public partial class MenuScene : Control
             Size = new Vector2(width, 60),
         };
         f.AddThemeFontSizeOverride("font_size", 26);
+        KeyboardAvoider.Watch(f); // docs/19 A3.1 — lift its window above the soft keyboard on mobile
         return f;
     }
 

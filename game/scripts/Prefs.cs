@@ -30,6 +30,9 @@ public static class Prefs
         public bool Entered { get; init; }                 // has the player chosen an entry (guest/login/register)?
         public string Nickname { get; init; } = "";        // persistent display name; hello sends it, set_name changes it
         public string LastUsername { get; init; } = "";    // prefill the login field next time (cleared on logout)
+        // 新手教学关 (docs/23):
+        public bool WelcomeSeen { get; init; }             // has the first-launch welcome popup been shown once?
+        public bool TutorialCompleted { get; init; }       // has the player finished the tutorial at least once?
     }
 
     private static Stored? _cached;
@@ -116,5 +119,21 @@ public static class Prefs
     {
         get => Get(s => s.LastUsername);
         set => Set(s => s with { LastUsername = value });
+    }
+
+    /// <summary>docs/23: set true after the first-launch 欢迎 popup is dismissed (whichever button) so it
+    /// only ever appears once. The tutorial itself is re-entered from the menu / 人机 panel afterwards.</summary>
+    public static bool WelcomeSeen
+    {
+        get => Get(s => s.WelcomeSeen);
+        set => Set(s => s with { WelcomeSeen = value });
+    }
+
+    /// <summary>docs/23: set true the first time the player finishes the 新手教学关. Currently informational
+    /// (the tutorial stays replayable); reserved for a future "已完成教学" mark on the entry button.</summary>
+    public static bool TutorialCompleted
+    {
+        get => Get(s => s.TutorialCompleted);
+        set => Set(s => s with { TutorialCompleted = value });
     }
 }

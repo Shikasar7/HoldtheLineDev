@@ -327,6 +327,11 @@ public sealed class GameState
     public int NextEntityId { get; set; } = 1;
     public int EventSequence { get; set; }
 
+    /// <summary>压力潮汐 starts biting at this round (set from <see cref="Engine.MatchConfig"/>; see
+    /// <see cref="Engine.TurnFlow.ApplyPressureTide"/>). Default 8 = standard; the 新手教学关 lowers it. Serialized +
+    /// cloned so replays/snapshots keep it; an old snapshot lacking the field keeps the initializer's 8.</summary>
+    public int PressureTideStartRound { get; set; } = Engine.TurnFlow.PressureTideStartRound;
+
     public List<UnitInstance> Units { get; set; } = new();
 
     /// <summary>格子状态 (docs/21 §1.6): 烟幕区 / 烬火陷阱. Old snapshots without this field deserialize to empty.</summary>
@@ -368,6 +373,7 @@ public sealed class GameState
         ActiveSeat = ActiveSeat,
         NextEntityId = NextEntityId,
         EventSequence = EventSequence,
+        PressureTideStartRound = PressureTideStartRound,
         Units = Units.Select(u => u.Clone()).ToList(),
         CellStates = CellStates.Select(c => c.Clone()).ToList(),
         Players = Players.Select(p => p.Clone()).ToArray(),

@@ -54,6 +54,25 @@ public class GameSetupTests
     }
 
     [Fact]
+    public void No_shuffle_draws_the_deck_in_list_order_from_the_top()
+    {
+        // 新手教学关 (docs/23): Shuffle=false makes the opening hand + turn-start draw a chosen,
+        // deterministic sequence. Top of deck = last list element, so draws walk the list backwards.
+        var deck0 = new List<string> { "t_vanilla", "t_big", "t_charger", "t_assault", "t_scout" };
+        var (state, _) = GameFactory.CreateGame(new MatchConfig
+        {
+            Seed = 999, Deck0 = deck0, Deck1 = DistinctDeck,
+            FirstSeat = 0, OpeningHandFirst = 2, OpeningHandSecond = 0,
+            CoinCardId = "", Shuffle = false,
+        }, TestKit.Db);
+
+        // Opening draws the last two (t_scout, t_assault); the turn-1 start draw then takes t_charger.
+        Assert.Equal(new[] { "t_scout", "t_assault", "t_charger" }, state.Player(0).Hand.Select(c => c.CardId));
+        // What's left keeps the original list order, drawn top-first from the end.
+        Assert.Equal(new[] { "t_vanilla", "t_big" }, state.Player(0).Deck.Select(c => c.CardId));
+    }
+
+    [Fact]
     public void Unknown_card_in_deck_fails_at_creation() =>
         Assert.ThrowsAny<Exception>(() => GameFactory.CreateGame(new MatchConfig
         {
