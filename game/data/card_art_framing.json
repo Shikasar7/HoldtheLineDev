@@ -125,11 +125,6 @@
     "offset_x": -0.04,
     "offset_y": 0.36
   },
-  "iv_fortify": {
-    "zoom": 0.9,
-    "offset_x": -0.22,
-    "offset_y": 0.09
-  },
   "iv_oath_squire": {
     "zoom": 1,
     "offset_x": 0.02,
