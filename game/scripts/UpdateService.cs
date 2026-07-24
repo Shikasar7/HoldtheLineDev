@@ -77,6 +77,7 @@ public partial class UpdateService : Node
     {
         if (_velopackRan) return; // guard: editor scene reloads shouldn't re-run it
         _velopackRan = true;
+        if (OS.HasFeature("mobile")) return; // docs/19 C2: Velopack is a Windows installer — nothing to run on Android/iOS
         try
         {
             VelopackApp.Build().Run();
@@ -89,6 +90,11 @@ public partial class UpdateService : Node
 
     private Form DetectForm()
     {
+        // docs/19 C2: mobile has no Velopack/itch install form — it always learns it's behind from the
+        // server's version.json and opens the APK download page. Skip the desktop-only Velopack probe.
+        if (OS.HasFeature("mobile"))
+            return Form.Portable;
+
         // A Velopack install can construct a working UpdateManager and reports IsInstalled. Construction is
         // cheap + offline (network only happens on CheckForUpdatesAsync), so it's safe to probe at boot.
         try
@@ -199,6 +205,7 @@ public partial class UpdateService : Node
         [JsonPropertyName("notes")] public string? Notes { get; init; }
         [JsonPropertyName("setup_url")] public string? SetupUrl { get; init; }
         [JsonPropertyName("itch_url")] public string? ItchUrl { get; init; }
+        [JsonPropertyName("android_url")] public string? AndroidUrl { get; init; } // docs/19 C2: APK download page for mobile
     }
 
     /// <summary>The most recent successful <see cref="FetchServerVersionAsync"/> result, cached so a menu
@@ -246,13 +253,17 @@ public partial class UpdateService : Node
     public static bool IsBehind(ServerVersionInfo? info) =>
         info?.Latest is { } latest && SemVer.IsOlder(GameConfig.ClientVersion, latest);
 
-    /// <summary>Open the human download page in the browser: itch page for an itch install, else the GitHub
-    /// releases page. Falls back to the built-in <see cref="ReleasesUrl"/> when version.json didn't supply one.</summary>
+    /// <summary>Open the human download page in the browser: on mobile the APK page (docs/19 C2), else the
+    /// itch page for an itch install or the GitHub releases page. Falls back to the built-in
+    /// <see cref="ReleasesUrl"/> when version.json didn't supply a matching url.</summary>
     public void OpenDownloadPage(ServerVersionInfo? info)
     {
-        string url = InstallForm == Form.Itch
-            ? info?.ItchUrl ?? info?.SetupUrl ?? ReleasesUrl
-            : info?.SetupUrl ?? ReleasesUrl;
+        // Mobile can't self-install an APK — send the player to the APK download page.
+        string url = OS.HasFeature("mobile")
+            ? info?.AndroidUrl ?? ReleasesUrl
+            : InstallForm == Form.Itch
+                ? info?.ItchUrl ?? info?.SetupUrl ?? ReleasesUrl
+                : info?.SetupUrl ?? ReleasesUrl;
         OS.ShellOpen(url);
     }
 

@@ -12,6 +12,7 @@ config_version=5
 
 config/name="Hold the Line"
 run/main_scene="res://scenes/menu/Menu.tscn"
+config/quit_on_go_back=false
 config/features=PackedStringArray("4.6", "C#", "Forward Plus")
 config/icon="res://icon.png"
 
@@ -28,6 +29,7 @@ window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/size/mode=2
 window/stretch/mode="canvas_items"
+window/handheld/orientation=4.0
 
 [dotnet]
 
@@ -36,3 +38,16 @@ project/assembly_name="HoldtheLine.Game"
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/godot_mcp/plugin.cfg")
+
+[input]
+
+cancel={
+"deadzone": 0.5,
+"events": Array[InputEvent]([Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":0,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":4194305,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)
+, Object(InputEventMouseButton,"resource_local_to_scene":false,"resource_name":"","device":0,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"button_mask":0,"position":Vector2(0, 0),"global_position":Vector2(0, 0),"factor":1.0,"button_index":2,"canceled":false,"pressed":false,"double_click":false,"script":null)
+])
+}
+
+[rendering]
+
+textures/vram_compression/import_etc2_astc=true

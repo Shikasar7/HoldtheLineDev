@@ -106,6 +106,7 @@ public partial class DeckScene : Control
         // Collection grid (scroll).
         var scroll = new ScrollContainer { Position = new Vector2(40, 176), Size = new Vector2(1120, 872) };
         scroll.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled;
+        TuneScrollForTouch(scroll);
         AddChild(scroll);
         var grid = new GridContainer { Columns = 5 };
         grid.AddThemeConstantOverride("h_separation", 14);
@@ -137,6 +138,7 @@ public partial class DeckScene : Control
         // Deck list (scroll).
         var deckScroll = new ScrollContainer { Position = new Vector2(70, 330), Size = new Vector2(542, 452) };
         deckScroll.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled;
+        TuneScrollForTouch(deckScroll);
         panel.AddChild(deckScroll);
         var list = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         list.AddThemeConstantOverride("separation", 4);
@@ -183,9 +185,11 @@ public partial class DeckScene : Control
     private Control CollectionTile(CardDefinition def)
     {
         var size = new Vector2(210, 132);
-        var tile = MakeButton("", Vector2.Zero, size, BattleTheme.PanelDark, () => AddCard(def));
+        PointerIntent? inspect = null; // set by HookInspect on touch; guards the tap so long-press-to-inspect doesn't also add
+        var tile = MakeButton("", Vector2.Zero, size, BattleTheme.PanelDark,
+            () => { if (inspect?.ConsumeRecentGesture() == true) return; AddCard(def); });
         tile.AddThemeStyleboxOverride("normal", BattleTheme.Box(BattleTheme.PanelDark, CardView.FactionColor(def.Faction), 2, 8));
-        HookInspect(tile, def); // hover = enlarged preview, right-click = full detail popup
+        inspect = HookInspect(tile, def);
 
         if (BattleTheme.Tex($"cards/{def.Id}.png") is { } art)
             tile.AddChild(CardView.ArtWindow(art, def.Id, new Vector2(4, 4), new Vector2(size.X - 8, 78)));
@@ -247,12 +251,14 @@ public partial class DeckScene : Control
                      .OrderBy(x => x.Def.Cost).ThenBy(x => x.Def.Name, System.StringComparer.Ordinal))
         {
             var def = g.Def;
-            var row = MakeButton($"{g.Count}×  {ShortName(def.Name)}", Vector2.Zero, new Vector2(516, 40), BattleTheme.PanelDark, () => RemoveOne(def.Id));
+            PointerIntent? rowInspect = null; // guards the tap so long-press-to-inspect doesn't also remove one
+            var row = MakeButton($"{g.Count}×  {ShortName(def.Name)}", Vector2.Zero, new Vector2(516, 40), BattleTheme.PanelDark,
+                () => { if (rowInspect?.ConsumeRecentGesture() == true) return; RemoveOne(def.Id); });
             row.AddThemeStyleboxOverride("normal", BattleTheme.Box(BattleTheme.PanelDark, CardView.FactionColor(def.Faction), 1, 6));
             row.AddThemeFontSizeOverride("font_size", 18);
             row.Alignment = HorizontalAlignment.Left;
             row.AddChild(CostBadge(def.Cost, new Vector2(470, 5), 30));
-            HookInspect(row, def); // hover = preview, right-click = detail. Left-click still removes one.
+            rowInspect = HookInspect(row, def); // desktop: hover preview + right-click detail; touch: long-press detail
             _deckList.AddChild(row);
         }
 
@@ -400,15 +406,55 @@ public partial class DeckScene : Control
 
     // ---------- inspect: hover preview + right-click detail popup ----------
 
-    private void HookInspect(Control tile, CardDefinition def)
+    // docs/19 A3.2 — make ScrollContainers usable on touch: a fat, finger-grabbable scrollbar plus a scroll
+    // deadzone. Dragging directly on a card tile is scrolled by its PointerIntent (the tile Button eats the
+    // touch, so the container can't scroll itself). Touch-only, so desktop keeps its thin bar + wheel scroll.
+    private static void TuneScrollForTouch(ScrollContainer sc)
     {
-        tile.MouseEntered += () => ShowPreview(def, tile);
-        tile.MouseExited += HidePreview;
-        tile.GuiInput += e =>
+        if (!DisplayServer.IsTouchscreenAvailable()) return;
+        sc.ScrollDeadzone = 20;
+        var vsb = sc.GetVScrollBar();
+        vsb.CustomMinimumSize = new Vector2(34, 0); // the default ~8px bar was too thin to grab with a finger
+        var grabber = new StyleBoxFlat { BgColor = new Color(0.74f, 0.60f, 0.28f, 0.95f) }; // gold
+        grabber.SetCornerRadiusAll(8);
+        vsb.AddThemeStyleboxOverride("grabber", grabber);
+        vsb.AddThemeStyleboxOverride("grabber_highlight", grabber);
+        vsb.AddThemeStyleboxOverride("grabber_pressed", grabber);
+        var track = new StyleBoxFlat { BgColor = new Color(0f, 0f, 0f, 0.30f) };
+        track.SetCornerRadiusAll(8);
+        vsb.AddThemeStyleboxOverride("scroll", track);
+    }
+
+    public override void _Notification(int what)
+    {
+        // docs/19 A3 — Android back key leaves the builder, same as the 返回 button (no auto-save, matching it).
+        if (what == NotificationWMGoBackRequest)
+            SceneFx.ChangeScene(this, MenuPath);
+    }
+
+    public override void _UnhandledInput(InputEvent @event)
+    {
+        // Desktop Esc = back to menu. Checked specifically (not the `cancel` action, which also binds right
+        // mouse) so right-click stays the card-inspect gesture in the builder. _UnhandledInput lets an open
+        // detail popup consume Esc first.
+        if (@event is InputEventKey { Pressed: true, Keycode: Key.Escape })
         {
-            if (e is InputEventMouseButton { ButtonIndex: MouseButton.Right, Pressed: true })
-                CardView.ShowDetailPopup(this, def);
-        };
+            GetViewport().SetInputAsHandled();
+            SceneFx.ChangeScene(this, MenuPath);
+        }
+    }
+
+    // Desktop: hover = enlarged preview, right-click = full detail popup. Touch (A2): long-press = detail
+    // (no hover preview). Returns the PointerIntent on touch so the tile's tap (add/remove) can be guarded
+    // against the release that follows a long-press; null on desktop.
+    private PointerIntent? HookInspect(Control tile, CardDefinition def)
+    {
+        if (!DisplayServer.IsTouchscreenAvailable())
+        {
+            tile.MouseEntered += () => ShowPreview(def, tile);
+            tile.MouseExited += HidePreview;
+        }
+        return PointerIntent.HookInspect(tile, () => CardView.ShowDetailPopup(this, def));
     }
 
     private void HidePreview()
