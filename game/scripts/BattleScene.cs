@@ -2287,8 +2287,8 @@ public partial class BattleScene : Control, IPlaybackHost, ITargetingHost
 	}
 
 	/// <summary>The statuses whose corner NUMBER is computed client-side rather than driven by a bound keyword:
-	/// 成长/引导增伤/引导减费 read the engine-computed UnitView fields (ChannelDeepen / ChannelDiscount /
-	/// GrowthTurnsLeft, docs/22 D5); 疾行 (swift) reads the Swift value straight off the unit's live keywords.</summary>
+	/// 成长/引导增伤/引导减费/引导+距离 read the engine-computed UnitView fields (ChannelDeepen / ChannelDiscount /
+	/// ChannelExtend / GrowthTurnsLeft, docs/22 D5); 疾行 (swift) reads the Swift value off the unit's live keywords.</summary>
 	private static bool ComputedStatus(string id, UnitView u, out string? corner)
 	{
 		corner = null;
@@ -2306,6 +2306,9 @@ public partial class BattleScene : Control, IPlaybackHost, ITargetingHost
 				return false;
 			case "channel_discount":
 				if (u.ChannelDiscount > 0) { corner = u.ChannelDiscount.ToString(); return true; }           // 晚祷领唱:引导减费 N
+				return false;
+			case "channel_extend":
+				if (u.ChannelExtend > 0) { corner = u.ChannelExtend.ToString(); return true; }               // 焰跃术士:引导+距离 N
 				return false;
 			default:
 				return false;

@@ -55,6 +55,8 @@ internal static class EffectEngine
     /// false: a targeted order with no target is a wasted card and stays illegal (docs/07, GDD battlecry rule).</param>
     /// <param name="anchorCenter">The 锚/引导 range origin (docs/21 §1.2): the deploy cell for a 锚 battlecry,
     /// the channeler's cell for a 引导 order. Null when the effect carries no anchor — then no range gate applies.</param>
+    /// <param name="anchorRangeBonus">额外施法距离 (焰跃术士 extend, 用户改版): +N added to every anchored effect's
+    /// range gate this cast — the channeler's 'extend' channel marker widens 引导·N. 0 for every other path.</param>
     public static RuleError? ValidateTargets(
         ResolutionContext ctx,
         int ownerSeat,
@@ -63,7 +65,8 @@ internal static class EffectEngine
         int? targetUnitId,
         Cell? targetCell,
         bool allowFizzleWhenNoTarget = false,
-        Cell? anchorCenter = null)
+        Cell? anchorCenter = null,
+        int anchorRangeBonus = 0)
     {
         foreach (var spec in effects)
         {
@@ -76,7 +79,7 @@ internal static class EffectEngine
                 {
                     // Fizzle only when the board offers no legal target for THIS effect; otherwise the
                     // player must still pick one (an empty command can't skip an answerable battlecry).
-                    if (allowFizzleWhenNoTarget && !AnyLegalUnitTarget(ctx.State, ownerSeat, spec, anchorCenter))
+                    if (allowFizzleWhenNoTarget && !AnyLegalUnitTarget(ctx.State, ownerSeat, spec, anchorCenter, anchorRangeBonus))
                         continue;
                     return new RuleError(RuleErrorCode.InvalidTarget, "This effect requires a unit target.");
                 }
@@ -85,7 +88,7 @@ internal static class EffectEngine
                     return new RuleError(RuleErrorCode.UnknownEntity, $"Target unit {targetUnitId.Value} does not exist.");
                 // Single source of truth for the owner/half + 锚/引导 range filters — shared with
                 // AnyLegalUnitTarget so "may I aim here?" and "does a legal target exist?" can never drift.
-                if (!IsLegalUnitTarget(ownerSeat, spec, target, anchorCenter))
+                if (!IsLegalUnitTarget(ownerSeat, spec, target, anchorCenter, anchorRangeBonus))
                     return new RuleError(RuleErrorCode.InvalidTarget, $"That unit is not a legal target for a '{spec.Target}' effect.");
             }
 
@@ -93,9 +96,9 @@ internal static class EffectEngine
             {
                 if (targetCell is null)
                     return new RuleError(RuleErrorCode.InvalidTarget, "This effect requires a target cell.");
-                // 引导 落点格 (行/列以落点格计算) must sit within the channeler's reach.
+                // 引导 落点格 (行/列以落点格计算) must sit within the channeler's reach (+extend 加成).
                 if (spec.HasAnchorRange && anchorCenter is { } cc
-                    && BoardGeometry.StepDistance(cc, targetCell.Value) > spec.AnchorRange)
+                    && BoardGeometry.StepDistance(cc, targetCell.Value) > spec.AnchorRange + anchorRangeBonus)
                     return new RuleError(RuleErrorCode.InvalidTarget, "落点格超出引导者射程。");
             }
         }
@@ -114,14 +117,15 @@ internal static class EffectEngine
 
     /// <summary>Does at least one on-board unit satisfy this spec's unit-target filter? Shares <see
     /// cref="IsLegalUnitTarget"/> with ValidateTargets, so the two can never disagree about "no legal target".</summary>
-    private static bool AnyLegalUnitTarget(GameState state, int ownerSeat, EffectSpec spec, Cell? anchorCenter) =>
-        state.Units.Any(u => IsLegalUnitTarget(ownerSeat, spec, u, anchorCenter));
+    private static bool AnyLegalUnitTarget(GameState state, int ownerSeat, EffectSpec spec, Cell? anchorCenter, int anchorRangeBonus = 0) =>
+        state.Units.Any(u => IsLegalUnitTarget(ownerSeat, spec, u, anchorCenter, anchorRangeBonus));
 
-    private static bool IsLegalUnitTarget(int ownerSeat, EffectSpec spec, UnitInstance u, Cell? anchorCenter)
+    private static bool IsLegalUnitTarget(int ownerSeat, EffectSpec spec, UnitInstance u, Cell? anchorCenter, int anchorRangeBonus = 0)
     {
         bool ownerOk = spec.Target switch
         {
             "target_unit_ally" => u.OwnerSeat == ownerSeat,
+            "target_unit_enemy" => u.OwnerSeat != ownerSeat, // 燔火 用户改版: the chosen 首发目标 must be an enemy.
             "target_unit_own_half" => u.OwnerSeat != ownerSeat && BoardGeometry.InOwnHalf(ownerSeat, u.Cell),
             // target_unit / unit_cross_all: no owner/half filter — any unit qualifies.
             _ => true,
@@ -131,10 +135,10 @@ internal static class EffectEngine
         // 潜行 (docs/21 §2): a Hidden unit cannot be SELECTED by an enemy single-target 指令/战吼 (AoE still hits).
         if (u.HasKeyword(Keyword.Hidden) && u.OwnerSeat != ownerSeat)
             return false;
-        // 锚/引导 range gate: a self/channel unit-target effect requires the target within reach of the
-        // anchor centre (deploy cell for 锚, channeler cell for 引导). No centre → gate not evaluated here.
+        // 锚/引导 range gate: a self/channel unit-target effect requires the target within reach of the anchor
+        // centre (deploy cell for 锚, channeler cell for 引导), +extend 加成. No centre → gate not evaluated here.
         if (spec.HasAnchorRange && anchorCenter is { } c
-            && BoardGeometry.StepDistance(c, u.Cell) > spec.AnchorRange)
+            && BoardGeometry.StepDistance(c, u.Cell) > spec.AnchorRange + anchorRangeBonus)
             return false;
         return true;
     }
@@ -190,6 +194,7 @@ internal static class EffectEngine
                 return source is null ? [] : [source];
 
             case "target_unit":
+            case "target_unit_enemy":
             case "target_unit_own_half":
             case "target_unit_ally":
                 var explicitTarget = targetUnitId is null ? null : ctx.State.FindUnit(targetUnitId.Value);

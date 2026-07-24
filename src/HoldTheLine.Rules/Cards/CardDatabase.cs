@@ -142,8 +142,9 @@ public sealed class CardDatabase
             // --- 引导者差异化 & 蓄能 (docs/21 §1.3) ---
             if (spec.Trigger == "channel")
             {
-                if (spec.Action is not ("deepen" or "discount"))
-                    throw new InvalidDataException($"Card '{card.Id}': a 'channel' marker must be deepen/discount, got '{spec.Action}'.");
+                // deepen (+伤害) / discount (-费) / extend (+施法距离, 焰跃术士 用户改版) — all read via ChannelEffectAmount.
+                if (spec.Action is not ("deepen" or "discount" or "extend"))
+                    throw new InvalidDataException($"Card '{card.Id}': a 'channel' marker must be deepen/discount/extend, got '{spec.Action}'.");
                 if (spec.Amount < 1)
                     throw new InvalidDataException($"Card '{card.Id}': channel {spec.Action} needs amount >= 1.");
             }

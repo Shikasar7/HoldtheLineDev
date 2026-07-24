@@ -79,6 +79,79 @@ public class ScatterAoeTests
         Assert.False(r.Success);
     }
 
+    // ---- 燔火 用户改版 (directed scatter — chosen enemy eats the first missile, 引导距离 2) ----
+
+    [Fact]
+    public void Aimed_scatter_first_missile_always_hits_the_chosen_enemy()
+    {
+        var state = TestKit.NewGame(seed: 7);
+        state.Player(0).Mana = 10;
+        var ch = TestKit.Place(state, 0, "t_vanilla", new Cell(2, 1));
+        var chosen = TestKit.Place(state, 1, "t_big", new Cell(2, 2)); // 5/6, Manhattan 1 from channeler
+        // Extra enemies so the two random follow-up missiles could land elsewhere.
+        var e2 = TestKit.Place(state, 1, "t_big", new Cell(0, 2));
+        var e3 = TestKit.Place(state, 1, "t_big", new Cell(4, 2));
+        int card = TestKit.GiveCard(state, 0, "t_scatter_aim"); // 3 missiles, first → chosen
+
+        var r = TestKit.NewResolver().Execute(state, new PlayCardCommand
+        { Seat = 0, CardEntityId = card, TargetUnitId = chosen.EntityId, ChannelerUnitId = ch.EntityId });
+
+        Assert.True(r.Success, r.Error?.Message);
+        Assert.True(r.State!.FindUnit(chosen.EntityId)!.CurrentHp <= 5, "chosen enemy must eat the guaranteed first missile");
+        int dealt = (6 - r.State!.FindUnit(chosen.EntityId)!.CurrentHp)
+                  + (6 - r.State!.FindUnit(e2.EntityId)!.CurrentHp)
+                  + (6 - r.State!.FindUnit(e3.EntityId)!.CurrentHp);
+        Assert.Equal(3, dealt); // 3 missiles all landed (no overkill — all survive)
+    }
+
+    [Fact]
+    public void Aimed_scatter_rejects_a_target_out_of_range()
+    {
+        var state = TestKit.NewGame();
+        state.Player(0).Mana = 10;
+        var ch = TestKit.Place(state, 0, "t_vanilla", new Cell(2, 0));
+        var enemy = TestKit.Place(state, 1, "t_big", new Cell(2, 3)); // Manhattan 3 > 引导距离 2
+        int card = TestKit.GiveCard(state, 0, "t_scatter_aim");
+
+        var r = TestKit.NewResolver().Execute(state, new PlayCardCommand
+        { Seat = 0, CardEntityId = card, TargetUnitId = enemy.EntityId, ChannelerUnitId = ch.EntityId });
+
+        Assert.False(r.Success);
+        Assert.Equal(RuleErrorCode.InvalidTarget, r.Error!.Code);
+    }
+
+    [Fact]
+    public void Aimed_scatter_rejects_a_friendly_target()
+    {
+        var state = TestKit.NewGame();
+        state.Player(0).Mana = 10;
+        var ch = TestKit.Place(state, 0, "t_vanilla", new Cell(2, 1));
+        var friendly = TestKit.Place(state, 0, "t_big", new Cell(2, 2)); // in range, but 友方
+        TestKit.Place(state, 1, "t_big", new Cell(1, 2));                 // an enemy exists (card otherwise castable)
+        int card = TestKit.GiveCard(state, 0, "t_scatter_aim");
+
+        var r = TestKit.NewResolver().Execute(state, new PlayCardCommand
+        { Seat = 0, CardEntityId = card, TargetUnitId = friendly.EntityId, ChannelerUnitId = ch.EntityId });
+
+        Assert.False(r.Success);
+        Assert.Equal(RuleErrorCode.InvalidTarget, r.Error!.Code);
+    }
+
+    [Fact]
+    public void Enumerator_offers_no_aimed_scatter_without_an_in_range_enemy()
+    {
+        // 用户选择「必须有目标·否则置灰」: with no enemy within 引导距离 2 of any channeler, 燔火 is unplayable.
+        var state = TestKit.NewGame();
+        state.Player(0).Mana = 10;
+        TestKit.Place(state, 0, "t_vanilla", new Cell(2, 0)); // channeler
+        TestKit.Place(state, 1, "t_big", new Cell(2, 3));     // only enemy, Manhattan 3 > 2
+        int card = TestKit.GiveCard(state, 0, "t_scatter_aim");
+
+        var legal = CommandEnumerator.LegalCommands(state, TestKit.Db, TestKit.Leaders);
+
+        Assert.DoesNotContain(legal, c => c is PlayCardCommand p && p.CardEntityId == card);
+    }
+
     // ---- 燎原 (all_enemies sear) ----
 
     [Fact]

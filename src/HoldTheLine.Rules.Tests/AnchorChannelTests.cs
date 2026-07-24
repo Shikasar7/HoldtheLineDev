@@ -181,6 +181,55 @@ public class AnchorChannelTests
         Assert.Equal(RuleErrorCode.InvalidTarget, bad.Error!.Code);
     }
 
+    // ---- 引导 施法距离 +1 (焰跃术士 extend, 用户改版) — the channeler widens the range gate ----
+
+    [Fact]
+    public void Extend_channeler_widens_the_channel_range_gate()
+    {
+        var state = TestKit.NewGame();
+        state.Player(0).Mana = 10;
+        var channeler = TestKit.Place(state, 0, "t_extend", new Cell(2, 0)); // extend 1 → 引导·2 becomes 引导·3
+        var enemy = TestKit.Place(state, 1, "t_big", new Cell(2, 3));        // Manhattan 3 from the channeler
+        int card = TestKit.GiveCard(state, 0, "t_channel_zap");             // base 引导·2
+
+        var result = TestKit.NewResolver().Execute(state, new PlayCardCommand
+        { Seat = 0, CardEntityId = card, TargetUnitId = enemy.EntityId, ChannelerUnitId = channeler.EntityId });
+
+        Assert.True(result.Success, result.Error?.Message);          // range-3 target is legal via extend
+        Assert.Equal(4, result.State!.FindUnit(enemy.EntityId)!.CurrentHp); // 6 - 2 (extend widens reach, not damage)
+    }
+
+    [Fact]
+    public void Plain_channeler_cannot_reach_the_range_three_target()
+    {
+        var state = TestKit.NewGame();
+        state.Player(0).Mana = 10;
+        var channeler = TestKit.Place(state, 0, "t_vanilla", new Cell(2, 0)); // no extend
+        var enemy = TestKit.Place(state, 1, "t_big", new Cell(2, 3));         // Manhattan 3 > base range 2
+        int card = TestKit.GiveCard(state, 0, "t_channel_zap");
+
+        var result = TestKit.NewResolver().Execute(state, new PlayCardCommand
+        { Seat = 0, CardEntityId = card, TargetUnitId = enemy.EntityId, ChannelerUnitId = channeler.EntityId });
+
+        Assert.False(result.Success);
+        Assert.Equal(RuleErrorCode.InvalidTarget, result.Error!.Code);
+    }
+
+    [Fact]
+    public void Enumerator_lets_an_extend_channeler_target_a_range_three_enemy()
+    {
+        var state = TestKit.NewGame();
+        state.Player(0).Mana = 10;
+        var channeler = TestKit.Place(state, 0, "t_extend", new Cell(2, 0));
+        var enemy = TestKit.Place(state, 1, "t_big", new Cell(2, 3)); // Manhattan 3 — only reachable via extend
+        TestKit.GiveCard(state, 0, "t_channel_zap");
+
+        var legal = CommandEnumerator.LegalCommands(state, TestKit.Db, TestKit.Leaders);
+
+        Assert.Contains(legal, c => c is PlayCardCommand
+        { ChannelerUnitId: { } ch, TargetUnitId: { } t } && ch == channeler.EntityId && t == enemy.EntityId);
+    }
+
     // ---- 非指向 channel (燔火/燎原 shape) — needs a channeler, no range gate ----
 
     [Fact]

@@ -74,6 +74,13 @@ Order = 8
 Trigger = 3
 Id = "channel_discount"
 
+[sub_resource type="Resource" id="Resource_xtnd0"]
+script = ExtResource("1_mwpsf")
+Glyph = "距"
+Order = 10
+Trigger = 3
+Id = "channel_extend"
+
 [sub_resource type="Resource" id="Resource_06gus"]
 script = ExtResource("1_mwpsf")
 Glyph = "缚"
@@ -91,4 +98,4 @@ Id = "swift"
 
 [resource]
 script = ExtResource("7_c3b7t")
-Statuses = Array[ExtResource("1_mwpsf")]([SubResource("Resource_3hhuk"), SubResource("Resource_3vdj4"), SubResource("Resource_g3cp1"), SubResource("Resource_hhb5w"), SubResource("Resource_mgrqu"), SubResource("Resource_phsmn"), SubResource("Resource_palvq"), SubResource("Resource_qcg6q"), SubResource("Resource_5badj"), SubResource("Resource_06gus"), SubResource("Resource_swift0")])
+Statuses = Array[ExtResource("1_mwpsf")]([SubResource("Resource_3hhuk"), SubResource("Resource_3vdj4"), SubResource("Resource_g3cp1"), SubResource("Resource_hhb5w"), SubResource("Resource_mgrqu"), SubResource("Resource_phsmn"), SubResource("Resource_palvq"), SubResource("Resource_qcg6q"), SubResource("Resource_5badj"), SubResource("Resource_xtnd0"), SubResource("Resource_06gus"), SubResource("Resource_swift0")])

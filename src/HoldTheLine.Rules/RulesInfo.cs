@@ -73,8 +73,16 @@ public static class RulesInfo
     /// the attacker rule). DamageUnit returns the HP dealt; ResolveUnitAttack accumulates the attacker's enemy
     /// total (ApplyTurretOnHit returns its splash total) for the attacker's siphon and separately fires the
     /// defender's siphon on retaliation damage. Behavior-only (DataHash unchanged); server + client must ship
-    /// this same version (Hello handshake gates on it).</remarks>
-    public const string Version = "0.11.1";
+    /// this same version (Hello handshake gates on it).
+    /// 0.12.0 (2026-07-24): 教团薪炎 3 卡改版 (用户). (a) 燔火 (dw_conflagrate) is now a directed scatter: it takes a
+    /// target_unit_enemy within 引导距离 2 (was 非指向, 无射程门), the chosen enemy eats the FIRST of its 5 missiles,
+    /// the rest still scatter at random (加深/蓄能 add missiles as before). New enemy-only single-target selector
+    /// target_unit_enemy; damage_scatter now accepts it. (b) 焰击术士 (dw_flame_caster) battlecry 自锚薪炎伤害 →
+    /// 蓄能 2 (amplify_next). (c) 焰跃术士 (dw_flare_dancer) battlecry 蓄能 2 → a passive 引导者 marker 'extend' 1:
+    /// the 薪炎 order it channels reaches +1 施法距离 (parallels deepen/discount; folded into the anchor range gate
+    /// via ChannelEffectAmount). PlayerView.UnitView adds ChannelExtend (additive JSON; old snapshots → 0); client
+    /// gains a 引导+距离 status badge. DataHash changes — client + server must ship this same data + version.</remarks>
+    public const string Version = "0.12.0";
 
     /// <summary>压力潮汐 start round, forwarded from the (internal) <see cref="Engine.TurnFlow"/> so the client
     /// HUD can show the tide countdown (docs/17) without hardcoding 8 and drifting from the rule. Read-only

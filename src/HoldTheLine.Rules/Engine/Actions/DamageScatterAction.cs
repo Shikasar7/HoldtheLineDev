@@ -10,22 +10,29 @@ internal sealed class DamageScatterAction : EffectActionBase
     public override string Name => "damage_scatter";
 
     public override string? ValidateCard(EffectSpec spec, CardDefinition card) =>
-        spec.Amount < 1 || spec.Target != "none"
-            ? $"Card '{card.Id}': 燔火 (damage_scatter) needs amount >= 1 and target 'none'."
+        spec.Amount < 1 || (spec.Target != "none" && spec.Target != "target_unit_enemy")
+            ? $"Card '{card.Id}': 燔火 (damage_scatter) needs amount >= 1 and target 'none' or 'target_unit_enemy'."
             : null;
 
     public override void Execute(ResolutionContext ctx, UnitInstance? source, int ownerSeat, EffectSpec spec,
         IReadOnlyList<UnitInstance> targets, Cell? targetCell, int amount, int? secondaryTargetUnitId)
     {
-        // 燔火 (docs/21 §3.1): fire `amount` missiles of 1 薪炎 damage, each at a RANDOM live enemy minion
-        // (re-rolled per missile among survivors, 炉石奥术飞弹 semantics). The roll is on the match Rng so
-        // replays are deterministic. 加深/蓄能 already folded into `amount` upstream (+1 missile per point).
+        // 燔火 (docs/21 §3.1 + 用户改版): fire `amount` missiles of 1 薪炎 damage. The chosen enemy (target ==
+        // target_unit_enemy → carried in `targets`) eats the FIRST missile (指定首发); every remaining missile
+        // re-rolls among live enemies (炉石奥术飞弹 semantics). Rolls run on the match Rng so replays are
+        // deterministic. 加深/蓄能 already folded into `amount` upstream (+1 missile per point). A legacy
+        // non-directional shape (target 'none', empty `targets`) keeps the all-random behaviour.
+        var chosen = targets.Count > 0 ? targets[0] : null;
         for (int i = 0; i < amount; i++)
         {
-            var live = ctx.State.Units.Where(u => u.OwnerSeat != ownerSeat && u.CurrentHp > 0).ToList();
-            if (live.Count == 0)
-                break;
-            var victim = live[ctx.State.Rng.NextInt(live.Count)];
+            UnitInstance? victim = i == 0 && chosen is { CurrentHp: > 0 } ? chosen : null;
+            if (victim is null)
+            {
+                var live = ctx.State.Units.Where(u => u.OwnerSeat != ownerSeat && u.CurrentHp > 0).ToList();
+                if (live.Count == 0)
+                    break;
+                victim = live[ctx.State.Rng.NextInt(live.Count)];
+            }
             ctx.DamageUnit(victim, 1, school: spec.School, effectDamage: true); // 架设 +1 applied inside
         }
     }

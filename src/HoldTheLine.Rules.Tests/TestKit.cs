@@ -316,6 +316,13 @@ public static class TestKit
         Effects = [new EffectSpec { Trigger = "channel", Action = "discount", Amount = 1 }],
     };
 
+    /// <summary>引导者 施法距离 +1 (焰跃术士, 用户改版): the 薪炎 order it channels reaches 1 step further.</summary>
+    public static readonly CardDefinition ExtendChanneler = new()
+    {
+        Id = "t_extend", Name = "Extender 2/3", Cost = 4, Atk = 2, Hp = 3,
+        Effects = [new EffectSpec { Trigger = "channel", Action = "extend", Amount = 1 }],
+    };
+
     /// <summary>归魂 (灼誓狂徒): gains 1 辉尘 (mana) whenever a friendly dies during your turn, cap 2/turn.</summary>
     public static readonly CardDefinition SoulReturnUnit = new()
     {
@@ -342,6 +349,14 @@ public static class TestKit
     {
         Id = "t_scatter", Name = "Scatter", Type = CardType.Order, Cost = 3,
         Effects = [new EffectSpec { Trigger = "play", Action = "damage_scatter", Amount = 3, School = "spell.kindle", Anchor = "channel" }],
+    };
+
+    /// <summary>燔火 用户改版: directed scatter — the chosen enemy (target_unit_enemy, within 引导·2) eats the first
+    /// of 3 薪炎 missiles; the rest scatter at random.</summary>
+    public static readonly CardDefinition ScatterAimOrder = new()
+    {
+        Id = "t_scatter_aim", Name = "Aimed Scatter", Type = CardType.Order, Cost = 3,
+        Effects = [new EffectSpec { Trigger = "play", Action = "damage_scatter", Target = "target_unit_enemy", Amount = 3, School = "spell.kindle", Anchor = "channel", AnchorRange = 2 }],
     };
 
     /// <summary>燎原 pattern: 非指向 channel — every enemy takes 2 薪炎 灼蚀.</summary>
@@ -460,8 +475,8 @@ public static class TestKit
         ColumnAllyBuffOrder, OnCastGrower, OnCastPinger, Recaller,
         SearOrder, SelfMovedGrower, SelfMovedPinger, EmplacementBuffOrder, RedeployOrder,
         AnchorBomber, ChannelZap, ChannelColumn, ChannelMana,
-        ChargeUnit, DeepenChanneler, DiscountChanneler, SoulReturnUnit, UncappedGrower, RootOrder,
-        ScatterOrder, AllEnemiesSear, SmokeOrder, TrapOrder, SummonOneOrder, CounterSecret, FlameLash, MoltenPriest,
+        ChargeUnit, DeepenChanneler, DiscountChanneler, ExtendChanneler, SoulReturnUnit, UncappedGrower, RootOrder,
+        ScatterOrder, ScatterAimOrder, AllEnemiesSear, SmokeOrder, TrapOrder, SummonOneOrder, CounterSecret, FlameLash, MoltenPriest,
         EchoUnit, BehemothUnit, BigDrawOrder, PhoenixForm, ImmuneGrower, StealthOrder, WardOrder,
     ]);
 

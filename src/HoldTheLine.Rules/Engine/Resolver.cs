@@ -298,8 +298,11 @@ public sealed class Resolver
         if (cmd.TargetUnitId is not null && !def.Effects.Any(e => e.Trigger == "play" && e.NeedsUnitTarget))
             return new RuleError(RuleErrorCode.InvalidCommand, "这张牌不需要单位目标。");
 
+        // 焰跃术士 extend (用户改版): a 引导者 carrying an 'extend' channel marker widens every anchored effect's
+        // range gate this cast. Pure passive — read here (like deepen/discount) and folded into the gate below.
+        int reachBonus = channeler is null ? 0 : EffectEngine.ChannelEffectAmount(_db, channeler, "extend");
         if (EffectEngine.ValidateTargets(ctx, cmd.Seat, def.Effects, "play", cmd.TargetUnitId, cmd.TargetCell,
-                anchorCenter: channeler?.Cell) is { } targetError)
+                anchorCenter: channeler?.Cell, anchorRangeBonus: reachBonus) is { } targetError)
             return targetError;
 
         // 烬火陷阱 placement rule (docs/21 §1.7): an empty cell that is not the enemy's backline.

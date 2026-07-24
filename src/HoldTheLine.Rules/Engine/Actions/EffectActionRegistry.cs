@@ -29,10 +29,12 @@ public static class EffectActionRegistry
             new MoveBonusAction(),
             new DestroyAction(),
             new RecallOrderAction(),
-            // docs/21 §1.3: 蓄能 (executable) + the two passive 引导者 markers read by the amplify pipeline.
+            // docs/21 §1.3: 蓄能 (executable) + the passive 引导者 markers read by the amplify/range pipeline
+            // (deepen +伤害, discount -费, extend +施法距离 — 焰跃术士 用户改版).
             new AmplifyNextAction(),
             new DeepenAction(),
             new DiscountAction(),
+            new ExtendRangeAction(),
             // docs/21 §3.1: 燔火's scatter missiles (Amount = missile count, each 1 薪炎; 加深/蓄能 add missiles).
             new DamageScatterAction(),
             // docs/21 §1.6/§1.7: place a 烟幕区 (烟幕弹) or a hidden 烬火陷阱 on the target cell.

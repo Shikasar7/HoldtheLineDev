@@ -102,7 +102,7 @@ public sealed record EffectSpec
     public static readonly IReadOnlySet<string> KnownSecretKinds = new HashSet<string> { "counter_order" };
 
     public static readonly IReadOnlySet<string> KnownTargets = new HashSet<string>
-        { "none", "self", "target_unit", "target_unit_own_half", "target_unit_ally",
+        { "none", "self", "target_unit", "target_unit_enemy", "target_unit_own_half", "target_unit_ally",
           "adjacent_allies", "adjacent_enemies",
           "column_enemies", "row_enemies", "column_allies", "cell_cross_all", "unit_cross_all",
           "allies_home_row", "all_allies", "all_ally_emplacements", "all_enemies",
@@ -131,7 +131,7 @@ public sealed record EffectSpec
           "all_enemies" };
 
     /// <summary>Targets the caller must supply an explicit unit for.</summary>
-    public bool NeedsUnitTarget => Target is "target_unit" or "target_unit_own_half" or "target_unit_ally" or "unit_cross_all";
+    public bool NeedsUnitTarget => Target is "target_unit" or "target_unit_enemy" or "target_unit_own_half" or "target_unit_ally" or "unit_cross_all";
 
     /// <summary>Targets that read the command's target cell (spatial selectors + a bare chosen cell).</summary>
     public bool NeedsCellTarget => Target is "column_enemies" or "row_enemies" or "column_allies" or "cell_cross_all" or "cell";

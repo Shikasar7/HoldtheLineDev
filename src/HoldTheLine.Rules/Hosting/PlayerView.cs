@@ -156,6 +156,9 @@ public sealed record UnitView
     public int ChannelDeepen { get; init; }
     /// <summary>引导减费: total "discount" this unit offers as a 引导者. 0 = none / old snapshot.</summary>
     public int ChannelDiscount { get; init; }
+    /// <summary>引导+距离 (焰跃术士 extend, 用户改版): total "extend" this unit offers as a 引导者 — the 薪炎 order it
+    /// channels reaches this many steps further. 0 = not an extend channeler / old snapshot.</summary>
+    public int ChannelExtend { get; init; }
     /// <summary>成长剩余回合: GrowthSpec.Turns - GrowthProgress, clamped at 0. Null = the card has no growth
     /// (or an old snapshot) — the client shows the countdown badge only when this is non-null.</summary>
     public int? GrowthTurnsLeft { get; init; }
@@ -185,6 +188,7 @@ public sealed record UnitView
         GrowthProgress = u.GrowthProgress,
         ChannelDeepen = db is null ? 0 : Engine.EffectEngine.ChannelEffectAmount(db, u, "deepen"),
         ChannelDiscount = db is null ? 0 : Engine.EffectEngine.ChannelEffectAmount(db, u, "discount"),
+        ChannelExtend = db is null ? 0 : Engine.EffectEngine.ChannelEffectAmount(db, u, "extend"),
         GrowthTurnsLeft = db?.Get(u.CardId).Growth is { } g ? Math.Max(0, g.Turns - u.GrowthProgress) : null,
         Modules = u.Turret?.Modules.ToList(),   // docs/20: 炮台在装模块 (public loadout); null on non-turrets
         IsShadow = u.Turret?.IsShadow ?? false,

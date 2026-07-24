@@ -110,12 +110,13 @@ public class Patch4DataTests
     }
 
     [Fact]
-    public void Flame_caster_battlecry_is_a_self_anchor_kindle()
+    public void Flame_caster_battlecry_now_charges_two()
     {
-        var e = Effect("dw_flame_caster", "damage");
-        Assert.True(e.IsSelfAnchor);
-        Assert.Equal(2, e.AnchorRange);
-        Assert.Equal("spell.kindle", e.School);
+        // 用户改版 (Rules 0.12.0): 自锚薪炎伤害 → 蓄能 2 (takes over 焰跃术士's old 蓄能 role).
+        var e = Db.Get("dw_flame_caster").Effects.Single();
+        Assert.Equal("battlecry", e.Trigger);
+        Assert.Equal("amplify_next", e.Action);
+        Assert.Equal(2, e.Amount);
     }
 
     [Fact]
@@ -159,24 +160,27 @@ public class Patch4DataTests
     // ---- §1.3 引导者差异化 + 蓄能 reworks ----
 
     [Fact]
-    public void Flare_dancer_battlecry_now_charges_two_and_keeps_assault()
+    public void Flare_dancer_is_now_an_extend_channeler_and_keeps_assault()
     {
+        // 用户改版 (Rules 0.12.0): 战吼 蓄能 2 → 引导者被动 施法距离 +1 (extend); 突袭 unchanged.
         var def = Db.Get("dw_flare_dancer");
         Assert.True(def.HasKeyword(Keyword.Assault));
         var e = def.Effects.Single();
-        Assert.Equal("battlecry", e.Trigger);
-        Assert.Equal("amplify_next", e.Action);
-        Assert.Equal(2, e.Amount);
+        Assert.Equal("channel", e.Trigger);
+        Assert.Equal("extend", e.Action);
+        Assert.Equal(1, e.Amount);
     }
 
     [Fact]
-    public void Conflagrate_is_a_five_missile_kindle_scatter()
+    public void Conflagrate_is_a_directed_five_missile_kindle_scatter()
     {
+        // 用户改版 (Rules 0.12.0): 非指向 → target_unit_enemy + 引导距离 2 (chosen enemy eats the first missile).
         var e = Effect("dw_conflagrate", "damage_scatter");
         Assert.Equal(5, e.Amount);
         Assert.Equal("spell.kindle", e.School);
         Assert.True(e.IsChannel);
-        Assert.Equal("none", e.Target);
+        Assert.Equal("target_unit_enemy", e.Target);
+        Assert.Equal(2, e.AnchorRange);
     }
 
     [Fact]
@@ -233,6 +237,7 @@ public class Patch4DataTests
     [InlineData("dw_flame_adept", "deepen", 1)]  // 焰术学徒 → 引导加深 1
     [InlineData("dw_pyroclast", "deepen", 2)]    // 熔岩巨灵 → 引导伤害 +2
     [InlineData("dw_vesper_cantor", "discount", 1)] // 晚祷领唱 → 引导减费 1
+    [InlineData("dw_flare_dancer", "extend", 1)] // 焰跃术士 → 引导施法距离 +1 (用户改版)
     public void Channeler_units_carry_their_channel_marker(string cardId, string action, int amount)
     {
         var def = Db.Get(cardId);

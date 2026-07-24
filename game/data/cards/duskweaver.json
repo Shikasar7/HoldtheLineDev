@@ -96,15 +96,11 @@
     "effects": [
       {
         "trigger": "battlecry",
-        "action": "damage",
-        "target": "target_unit",
-        "amount": 2,
-        "school": "spell.kindle",
-        "anchor": "self",
-        "anchor_range": 2
+        "action": "amplify_next",
+        "amount": 2
       }
     ],
-    "text": "战吼(以自身为锚点,射程2):对一个随从造成 2 点薪炎伤害。",
+    "text": "战吼:蓄能 2(你的下一张薪炎伤害指令 +2)。",
     "art_prompt": "a battle mage hurling a compressed bolt of fire, robes whipping backward"
   },
   {
@@ -144,12 +140,12 @@
     ],
     "effects": [
       {
-        "trigger": "battlecry",
-        "action": "amplify_next",
-        "amount": 2
+        "trigger": "channel",
+        "action": "extend",
+        "amount": 1
       }
     ],
-    "text": "突袭。战吼:蓄能 2(你的下一张薪炎伤害指令 +2)。",
+    "text": "突袭。由本随从引导的薪炎指令施法距离 +1。",
     "art_prompt": "an agile fire-dancer mid-leap, twin ribbons of flame tracing arcs around them"
   },
   {
@@ -503,12 +499,14 @@
       {
         "trigger": "play",
         "action": "damage_scatter",
+        "target": "target_unit_enemy",
         "amount": 5,
         "school": "spell.kindle",
-        "anchor": "channel"
+        "anchor": "channel",
+        "anchor_range": 2
       }
     ],
-    "text": "造成 5 次 1 点薪炎伤害,随机分配到敌方随从(每点加深/蓄能 +1 发)。需友方随从引导。",
+    "text": "造成 5 次 1 点薪炎伤害:首发命中所选敌方随从,其余随机分配到敌方随从(每点加深/蓄能 +1 发)。需友方随从引导(施法距离 2)。",
     "art_prompt": "a roaring gout of flame engulfing a single target, intense orange blaze"
   },
   {
