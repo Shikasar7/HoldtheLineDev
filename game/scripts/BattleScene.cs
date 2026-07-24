@@ -34,7 +34,7 @@ public partial class BattleScene : Control, IPlaybackHost, ITargetingHost
 	private readonly Button[,] _cellButtons = new Button[BattleTheme.Cols, BattleTheme.Rows];
 	private readonly Dictionary<int, Button> _standees = new();
 	private readonly HashSet<int> _emplacementUnits = new(); // entityIds of 架设 units — drives the "架设 +1" effect-damage tag
-	private Button _oppLeaderBtn = null!, _endTurnBtn = null!, _leaderPowerBtn = null!, _cancelBtn = null!;
+	private Button _oppLeaderBtn = null!, _endTurnBtn = null!, _leaderPowerBtn = null!, _cancelBtn = null!, _useBtn = null!;
 	private Label _turnLabel = null!, _selfInfo = null!;
 	private RichTextLabel _logLabel = null!;
 	private readonly Label[] _oppStats = new Label[3]; // opponent hand / deck / dust capsules (docs/18 §4.4)
@@ -376,6 +376,16 @@ public partial class BattleScene : Control, IPlaybackHost, ITargetingHost
 		_cancelBtn.Visible = false;
 		_cancelBtn.Pressed += OnCancelSelection;
 		_hudLayer.AddChild(_cancelBtn);
+
+		// 使用: confirm-play a no-target 指令 (抽牌指令 等). Such a card no longer fires on tap — a tap only
+		// stages it, so brushing it while reading can't play it. Sits just above 取消, shown only while a
+		// no-target card is staged (RefreshSelectionUi). Dragging the card onto the board also plays it.
+		_useBtn = BattleTheme.MakeButton(new Vector2(1600, 660), new Vector2(260, 74), BattleTheme.PanelDark, BattleTheme.CostColor, 2, 12, textured: true);
+		_useBtn.Text = "✓ 使用";
+		_useBtn.AddThemeFontSizeOverride("font_size", 24);
+		_useBtn.Visible = false;
+		_useBtn.Pressed += OnUseSelection;
+		_hudLayer.AddChild(_useBtn);
 
 		// Log sits between board and hand (bigger hand cards now cover the old bottom slot).
 		_logLabel = new RichTextLabel
@@ -1057,6 +1067,7 @@ public partial class BattleScene : Control, IPlaybackHost, ITargetingHost
 		if (_cancelBtn is null) return; // HUD not built yet
 		bool active = _targeting.Kind != TargetingKind.None && !_busy && _dragCardId is null;
 		_cancelBtn.Visible = active;
+		_useBtn.Visible = active && _targeting.NoTargetReady; // 使用 shows only for a staged no-target 指令
 		if (active && SelectedCardId is { } id)
 			HighlightSelectedCard(id);
 		else
@@ -1124,6 +1135,14 @@ public partial class BattleScene : Control, IPlaybackHost, ITargetingHost
 		_sfx.Play("button");
 		ClearSelection();
 		Log("已取消。");
+	}
+
+	/// <summary>使用: confirm-play the staged no-target 指令 (see <see cref="TargetingController.ConfirmNoTarget"/>).</summary>
+	private void OnUseSelection()
+	{
+		if (!_targeting.NoTargetReady) return;
+		_sfx.Play("button");
+		_targeting.ConfirmNoTarget();
 	}
 
 	// 友伤确认 (docs/07 X3.2): while aiming a 十字 AOE order, hovering a legal cell previews the whole
@@ -1236,7 +1255,9 @@ public partial class BattleScene : Control, IPlaybackHost, ITargetingHost
 		}
 		bool crossAim = handCard != null && _cards.TryGet(handCard.CardId, out var cardDef)
 			&& cardDef.Effects.Any(e => e.Target == "cell_cross_all"); // 十字 AOE → hover shows friendly-fire footprint
-		_targeting.SelectCard(cardEntityId, autoSubmit, crossAim);
+		// autoSubmit stays meaningful only for the module-install gate above; the board-targeting controller no
+		// longer auto-plays a no-target 指令 on tap (it stages a 使用 confirmation instead).
+		_targeting.SelectCard(cardEntityId, crossAim);
 	}
 
 	/// <summary>Whether a hand card is a 掘世匠会 module install (Equipment) or a 镜像工坊 order — both pick an in-装
@@ -1405,6 +1426,10 @@ public partial class BattleScene : Control, IPlaybackHost, ITargetingHost
 
 		var hit = HitTest(pos);
 		if (hit is null) { ClearSelection(); Log("已取消。"); return; }
+		// No-target 指令 (抽牌指令 等): dropping anywhere on the board plays it (拖到场中 == 使用); the exact
+		// drop cell is irrelevant, so short-circuit before the cell/unit routing below. Require the dropped card
+		// to BE the staged one — a module drag bypasses the controller, so a prior no-target staging must not leak.
+		if (_targeting.NoTargetReady && SelectedCardId == id) { _targeting.ConfirmNoTarget(); return; }
 		switch (hit.Value.Kind)
 		{
 			case HitKind.Cell: _targeting.PickCell(hit.Value.Cell); break;

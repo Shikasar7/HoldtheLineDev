@@ -98,8 +98,10 @@ public sealed class TargetingController
 	}
 
 	/// <summary>A hand card was picked (tap or drag start). <paramref name="crossAim"/> is the host-evaluated
-	/// "this card aims a 十字 AOE" fact (needs the card database, so it stays scene-side).</summary>
-	public void SelectCard(int cardEntityId, bool autoSubmit, bool crossAim)
+	/// "this card aims a 十字 AOE" fact (needs the card database, so it stays scene-side). A no-target 指令 no
+	/// longer fires on the pick — it stages a 使用 confirmation instead (see <see cref="NoTargetReady"/> /
+	/// <see cref="ConfirmNoTarget"/>) so brushing the card while reading its effect can't play it by accident.</summary>
+	public void SelectCard(int cardEntityId, bool crossAim)
 	{
 		int seat = _host.ActiveSeat;
 		var legal = _host.LegalCommands(seat);
@@ -107,18 +109,39 @@ public sealed class TargetingController
 		Kind = TargetingKind.Card;
 		_chosenCell = null;
 		_crossAim = crossAim; // 十字 AOE → hover shows friendly-fire footprint
+		_extraPick = ExtraPick.None; // a fresh pick must not inherit a stale 引导者/复述 dimension
+		_host.CloseEchoBar(); // ...nor leave a 门德复述 bar from a prior selection on screen
 		_host.ClearHighlights();
 
 		if (_candidates.Count == 0) { _host.Log("这张牌现在打不出。"); Clear(); return; }
-		// No-target card (e.g. 抽牌指令): a tap plays it immediately; a drag waits for the drop.
-		if (autoSubmit && _candidates.Count == 1 && CellOf(_candidates[0]) is null && UnitOf(_candidates[0]) is null)
-		{ _host.Submit(_candidates[0]); return; }
-		// Non-directional channels (燔火/燎原) still need their channeler disambiguated. Previously they
-		// fell through to the unit-target prompt even though their commands carry no primary target.
+		// Non-directional channels (燔火/燎原) still need their channeler disambiguated first. Otherwise they
+		// would fall through to the unit-target prompt even though their commands carry no primary target.
 		if (_candidates.All(c => CellOf(c) is null && UnitOf(c) is null) && PromptExtraPick()) return;
+		// No-target 指令 (抽牌指令 等): stage it and let the host offer 使用 — a tap no longer auto-plays, so a
+		// mis-tap while reading the effect can't fire it. Dragging the card onto the board also confirms
+		// (the host routes a board drop to ConfirmNoTarget while NoTargetReady holds).
+		if (NoTargetReady)
+		{
+			_host.Log("点「使用」打出这张指令,或将卡拖到场上。");
+			_host.RefreshSelectionUi();
+			return;
+		}
 
 		RefreshCandidateHighlights();
 		_host.RefreshSelectionUi(); // lift the card + show 取消 (skipped mid-drag; re-applied once the drag drops)
+	}
+
+	/// <summary>True when the card selection has converged to a single no-target play awaiting 使用 confirmation
+	/// (no cell, no unit, no pending 引导者/复述 pick). The host shows the 使用 button and treats a board drop as
+	/// confirmation while this holds.</summary>
+	public bool NoTargetReady =>
+		Kind == TargetingKind.Card && _extraPick == ExtraPick.None && _candidates.Count == 1
+		&& CellOf(_candidates[0]) is null && UnitOf(_candidates[0]) is null;
+
+	/// <summary>使用 / 拖到场上: submit the sole staged no-target play. No-op unless <see cref="NoTargetReady"/>.</summary>
+	public void ConfirmNoTarget()
+	{
+		if (NoTargetReady) _host.Submit(_candidates[0]);
 	}
 
 	/// <summary>Re-highlight the current candidates (cells to aim at, or the target/receiver units) and repeat
