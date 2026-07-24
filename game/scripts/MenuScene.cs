@@ -61,7 +61,7 @@ public partial class MenuScene : Control
         AddButton("人机对战", "icon_vs_ai", new Vector2(660, 440), () => ShowVsAiPanel());
         AddButton("同屏对战", "icon_hotseat", new Vector2(660, 528), ShowHotseatPanel);
         AddButton("联机对战", "icon_online", new Vector2(660, 616), ShowOnlinePanel);
-        AddButton("卡组管理", "icon_decks", new Vector2(660, 704), ShowDeckManager);
+        AddButton("卡组管理", "icon_decks", new Vector2(660, 704), () => ShowDeckManager());
         AddButton("退出", "icon_exit", new Vector2(660, 792), () => GetTree().Quit());
 
         AddVersionLabel();
@@ -1132,13 +1132,13 @@ public partial class MenuScene : Control
 
     // ---------- deck manager (local storage: multiple decks, edit / rename / copy / delete / vs-AI) ----------
 
-    private void ShowDeckManager()
+    private void ShowDeckManager(string? flash = null)
     {
         var p = NewPanel();
         PanelLabel(p, "卡 组 管 理", 66, 52, BattleTheme.TextMain);
         PanelLabel(p, "本地卡组:编辑 / 改名 / 复制 / 口令 / 删除,或直接用于人机对战", 144, 22, BattleTheme.TextDim);
         // Transient status line under the title (口令 copy / import feedback), reused by the 口令 row buttons.
-        var status = PanelLabel(p, "", 192, 22, BattleTheme.Accent);
+        var status = PanelLabel(p, flash ?? "", 192, 22, BattleTheme.Accent);
 
         var decks = DeckStorage.LoadAll();
         var scroll = new ScrollContainer { Position = new Vector2(380, 224), Size = new Vector2(1160, 672) };
@@ -1258,18 +1258,61 @@ public partial class MenuScene : Control
                 .Select(id => db.TryGet(id, out var def) ? def.Faction : DeckValidator.NeutralFaction)
                 .FirstOrDefault(f => f != DeckValidator.NeutralFaction) ?? leaderDef.Faction;
 
+            string localId = DeckStorage.NewId();
+            string name = DeckStorage.UniqueName("导入的卡组");
+            var cards = p2.Cards.ToList();
             DeckStorage.Save(new StoredDeck
             {
-                Id = DeckStorage.NewId(),
-                Name = DeckStorage.UniqueName("导入的卡组"),
+                Id = localId,
+                Name = name,
                 Faction = faction,
                 Leader = p2.Leader,
-                CardIds = p2.Cards.ToList(),
+                CardIds = cards,
                 ServerId = null,
             });
-            ShowDeckManager();
+
+            // The online lobby lists server decks only (Profile.Decks), so a local-only import never showed up
+            // there — push it now while connected and link the assigned id back. Offline, it stays local and
+            // syncs on the next editor save. docs/12 A1.2.
+            if (Session.Connected)
+            {
+                status.Text = "导入成功,正在同步到联机…";
+                status.AddThemeColorOverride("font_color", BattleTheme.Accent);
+                SyncImportedDeckToServer(localId, name, p2.Leader, cards);
+            }
+            else
+                ShowDeckManager("已导入到本地,联机后在卡组编辑里保存一次即可用于对战");
         }));
-        p.AddChild(Btn("取消", new Vector2(Cx + 310, 616), new Vector2(290, 64), ShowDeckManager));
+        p.AddChild(Btn("取消", new Vector2(Cx + 310, 616), new Vector2(290, 64), () => ShowDeckManager()));
+    }
+
+    /// <summary>Push a freshly imported local deck to the server so the online lobby (which lists server decks
+    /// only) can see it, then link the assigned server id back onto the local copy and refresh the profile.
+    /// One-shot, self-detaching handlers; a failed push leaves the deck saved locally, re-syncable by an editor
+    /// save. Mirrors <see cref="DeckScene"/>'s save→DeckSaved flow. docs/12 A1.2.</summary>
+    private void SyncImportedDeckToServer(string localId, string name, string leader, List<string> cardIds)
+    {
+        void Detach()
+        {
+            Session.DeckSavedOk -= OnOk;
+            Session.DeckSaveFailed -= OnFail;
+        }
+        void OnOk(DeckSaved ds) => Callable.From(() =>
+        {
+            Detach();
+            DeckStorage.SetServerId(localId, ds.DeckId);   // link local ↔ server copy
+            _ = Session.SendAsync(new GetProfile());        // refresh Profile.Decks so the lobby lists it
+            if (GodotObject.IsInstanceValid(this)) ShowDeckManager("已同步到联机,可在大厅选用");
+        }).CallDeferred();
+        void OnFail(DeckError de) => Callable.From(() =>
+        {
+            Detach();
+            if (GodotObject.IsInstanceValid(this)) ShowDeckManager($"联机同步失败(本地已保存):{de.Message}");
+        }).CallDeferred();
+
+        Session.DeckSavedOk += OnOk;
+        Session.DeckSaveFailed += OnFail;
+        _ = Session.SendAsync(new SaveDeck { DeckId = null, Name = name, Leader = leader, CardIds = cardIds });
     }
 
     private void PromptRename(StoredDeck d)
@@ -1287,7 +1330,7 @@ public partial class MenuScene : Control
                 _ = Session.SendAsync(new SaveDeck { DeckId = d.ServerId, Name = name, Leader = d.Leader, CardIds = d.CardIds });
             ShowDeckManager();
         }));
-        p.AddChild(Btn("取消", new Vector2(Cx + 310, 560), new Vector2(290, 64), ShowDeckManager));
+        p.AddChild(Btn("取消", new Vector2(Cx + 310, 560), new Vector2(290, 64), () => ShowDeckManager()));
     }
 
     private void ConfirmDelete(StoredDeck d)
@@ -1301,7 +1344,7 @@ public partial class MenuScene : Control
             DeleteServerDeck(d.ServerId); // tombstone + (if online) delete now — see DeleteServerDeck
             ShowDeckManager();
         }));
-        p.AddChild(Btn("取消", new Vector2(Cx + 310, 540), new Vector2(290, 64), ShowDeckManager));
+        p.AddChild(Btn("取消", new Vector2(Cx + 310, 540), new Vector2(290, 64), () => ShowDeckManager()));
     }
 
     /// <summary>Reap a deck's server copy (方案1). Always tombstones the id first, so a delete made offline —
