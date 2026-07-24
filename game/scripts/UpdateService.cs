@@ -38,8 +38,8 @@ public partial class UpdateService : Node
 
     // docs/15 §2/§6: the Velopack feed + human download page, in ONE place. If GitHub gets too slow in CN,
     // a mirror (R2/COS) only needs a SimpleWebSource swapped in here — the rest of the flow is unchanged.
-    public const string RepoUrl = "https://github.com/Shikasar7/HoldtheLine";
-    public const string ReleasesUrl = "https://github.com/Shikasar7/HoldtheLine/releases/latest";
+    public const string RepoUrl = "https://github.com/Shikasar7/HoldTheLine";
+    public const string ReleasesUrl = "https://github.com/Shikasar7/HoldTheLine/releases/latest";
 
     private static bool _velopackRan;
 

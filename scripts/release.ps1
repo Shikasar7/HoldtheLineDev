@@ -50,7 +50,7 @@ $RelDir    = Join-Path $Root 'build\releases'
 $ExeName   = 'HoldTheLine.exe'          # export_presets.cfg 的导出名
 $PackId    = 'HoldTheLine'              # Velopack 包 id(--packId / -u)
 $Preset    = 'Windows Desktop'          # export_presets.cfg 的 preset 名
-$RepoUrl   = 'https://github.com/Shikasar7/HoldtheLine'
+$RepoUrl   = 'https://github.com/Shikasar7/HoldTheLine'
 $VersionJson = Join-Path $Root 'deploy\vps\version.json'
 
 function Info($m) { Write-Host "==> $m" -ForegroundColor Cyan }
