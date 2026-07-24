@@ -15,9 +15,11 @@ public static class SacrificePanel
 {
 	/// <summary>True (and shows the panel) when this deploy is a 熔剑祭士 with ≥2 hand orders to sacrifice —
 	/// otherwise the caller deploys plain. <paramref name="submit"/> receives either the enriched command
-	/// (献祭并装备) or the original bare deploy (直接上场).</summary>
+	/// (献祭并装备) or the original deploy with an empty sacrifice list (直接上场). <paramref name="onCancel"/>
+	/// runs when the player backs out entirely (取消) — the card is never played, so the caller resets any
+	/// pending selection/highlights.</summary>
 	public static bool TryShow(Control overlayLayer, CardDatabase cards, SfxBank sfx, PlayerView view,
-		PlayCardCommand deploy, System.Action<Command> submit)
+		PlayCardCommand deploy, System.Action<Command> submit, System.Action onCancel)
 	{
 		if (view.Self.Hand.FirstOrDefault(h => h.EntityId == deploy.CardEntityId) is not { } handCard
 			|| !cards.TryGet(handCard.CardId, out var def)
@@ -30,12 +32,12 @@ public static class SacrificePanel
 		if (orders.Count < 2)
 			return false; // nothing to sacrifice → the caller just deploys the 2/4 body
 
-		Show(overlayLayer, cards, sfx, deploy, orders, submit);
+		Show(overlayLayer, cards, sfx, deploy, orders, submit, onCancel);
 		return true;
 	}
 
 	private static void Show(Control overlayLayer, CardDatabase cards, SfxBank sfx,
-		PlayCardCommand deploy, List<CardInHandView> orders, System.Action<Command> submit)
+		PlayCardCommand deploy, List<CardInHandView> orders, System.Action<Command> submit, System.Action onCancel)
 	{
 		var picks = new List<int>();
 		// The parchment has a thick painted frame (about 76 px on every edge), so all content lives inside
@@ -161,10 +163,18 @@ public static class SacrificePanel
 			panel.AddChild(b);
 		}
 
-		equipBtn = BattleTheme.MakeButton(new Vector2(pw / 2f - 270, buttonY), new Vector2(250, 64), BattleTheme.AtkColor, BattleTheme.AtkColor, 2, 10, textured: true);
+		// Three actions on one row: 献祭并装备 (equip), 直接上场 (deploy plain), 取消 (abort the whole play).
+		// The player used to be trapped here — 直接上场 re-sent the SacrificeEntityIds:null command, which the
+		// caller's gate re-read as "not decided yet" and re-opened this same panel (looked frozen). Plain deploy
+		// now sends an EMPTY sacrifice list (rules: null/empty = decline), and 取消 backs out without playing.
+		const float btnW = 250, btnGap = 28;
+		float btnRowW = 3 * btnW + 2 * btnGap;
+		float btnRowX = (pw - btnRowW) / 2f;
+
+		equipBtn = BattleTheme.MakeButton(new Vector2(btnRowX, buttonY), new Vector2(btnW, 64), BattleTheme.AtkColor, BattleTheme.AtkColor, 2, 10, textured: true);
 		// The gold plate uses 30 px nine-slice rails. Their implicit content margins used to force this control
-		// taller than its steel twin, despite identical Size/Position values. Keep the ornate rails, but give
-		// the text a compact content box so the two buttons resolve to the same 64 px visual height.
+		// taller than its steel twins, despite identical Size/Position values. Keep the ornate rails, but give
+		// the text a compact content box so all three buttons resolve to the same 64 px visual height.
 		foreach (var stateName in new[] { "normal", "hover", "pressed", "focus", "disabled" })
 			if (equipBtn.GetThemeStylebox(stateName) is { } style)
 			{
@@ -181,10 +191,15 @@ public static class SacrificePanel
 		};
 		panel.AddChild(equipBtn);
 
-		var skipBtn = BattleTheme.MakeButton(new Vector2(pw / 2f + 20, buttonY), new Vector2(250, 64), BattleTheme.PanelDark, bronze, 2, 10, textured: true);
+		var skipBtn = BattleTheme.MakeButton(new Vector2(btnRowX + (btnW + btnGap), buttonY), new Vector2(btnW, 64), BattleTheme.PanelDark, bronze, 2, 10, textured: true);
 		skipBtn.Text = "直接上场"; skipBtn.AddThemeFontSizeOverride("font_size", 22);
-		skipBtn.Pressed += () => { Close(); submit(deploy); };
+		skipBtn.Pressed += () => { sfx.Play("button"); Close(); submit(deploy with { SacrificeEntityIds = new List<int>() }); };
 		panel.AddChild(skipBtn);
+
+		var cancelBtn = BattleTheme.MakeButton(new Vector2(btnRowX + 2 * (btnW + btnGap), buttonY), new Vector2(btnW, 64), BattleTheme.PanelDark, bronze, 2, 10, textured: true);
+		cancelBtn.Text = "取消"; cancelBtn.AddThemeFontSizeOverride("font_size", 22);
+		cancelBtn.Pressed += () => { sfx.Play("button"); Close(); onCancel(); };
+		panel.AddChild(cancelBtn);
 
 		Repaint();
 		overlayLayer.AddChild(overlay);

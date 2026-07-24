@@ -53,6 +53,24 @@ public class MoltenSwordTests
     }
 
     [Fact]
+    public void Declining_via_empty_list_deploys_a_plain_body()
+    {
+        // The 直接上场 button sends an EMPTY (non-null) sacrifice list so the client's picker gate
+        // (SacrificeEntityIds:null) doesn't re-open the panel. The rules must treat empty == declined.
+        var state = TestKit.NewGame();
+        state.Player(0).Mana = 10;
+        int priest = TestKit.GiveCard(state, 0, "t_molten_priest");
+
+        var r = TestKit.NewResolver().Execute(state, new PlayCardCommand
+        { Seat = 0, CardEntityId = priest, TargetCell = new Cell(2, 0), SacrificeEntityIds = [] });
+
+        Assert.True(r.Success, r.Error?.Message);
+        var unit = r.State!.UnitAt(new Cell(2, 0))!;
+        Assert.Equal(2, unit.Atk);
+        Assert.False(unit.HasKeyword(Keyword.MoltenSword));
+    }
+
+    [Fact]
     public void Sacrificing_the_wrong_count_is_rejected()
     {
         var state = TestKit.NewGame();

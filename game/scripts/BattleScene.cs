@@ -1454,7 +1454,7 @@ public partial class BattleScene : Control, IPlaybackHost, ITargetingHost
 	{
 		// 熔剑祭士 (docs/21 §3.2): before a bare deploy resolves, offer the 献祭 panel to equip the 熔岩巨剑.
 		if (cmd is PlayCardCommand { SacrificeEntityIds: null } deploy
-			&& SacrificePanel.TryShow(_overlayLayer, _cards, _sfx, _host.GetView(ViewSeat), deploy, Submit)) return;
+			&& SacrificePanel.TryShow(_overlayLayer, _cards, _sfx, _host.GetView(ViewSeat), deploy, Submit, ClearSelection)) return;
 		if (_online) { SubmitOnline(cmd); return; }
 		if (_busy) return;
 		_busy = true;
