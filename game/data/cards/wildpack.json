@@ -426,7 +426,7 @@
 	"keywords": [
 	  {
 		"keyword": "swift",
-		"value": 3
+		"value": 2
 	  }
 	],
 	"effects": [
@@ -437,7 +437,7 @@
 		"atk": 2
 	  }
 	],
-	"text": "疾行 3。移动后:本随从 +2/+0(每回合最多 2 次)。",
+	"text": "疾行 2。移动后:本随从 +2/+0(每回合最多 2 次)。",
 	"art_prompt": "a spectral pale wolf blurring across the wilds, half-mist, glowing eyes, impossibly fast"
   },
   {

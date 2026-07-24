@@ -86,9 +86,10 @@ public static class RulesInfo
     /// (base 1 plus the Swift value) instead of "= N". So every Swift unit gains +1 格/回合: 疾行1 1→2, 疾行2 2→3,
     /// 疾行3 3→4. Fixes 疾行1 having been a no-op (it read as move-1, same as a normal unit), so the "御前枪骑/
     /// 烬爆蛾/灰烬幼灵 +疾行1" grants now actually do something. Turret track speed is preserved: the 派生面板 now
-    /// grants 疾行 = 履带数 (was 1 + 履带数) so 裸炮 1 / 1 履带 2 / 镜像 3 are unchanged. Behavior-only — no card data
-    /// changes, DataHash unchanged; the 疾N badge still shows N. Server + client must ship this same version
-    /// (Hello handshake gates on it).</remarks>
+    /// grants 疾行 = 履带数 (was 1 + 履带数) so 裸炮 1 / 1 履带 2 / 镜像 3 are unchanged. Paired card tuning under the
+    /// new rule: 荒野之魂 (wp_ghost_of_wilds) 疾行3→2, so it moves 3 格 (was 4) and no longer crosses the whole
+    /// 4×5 board in one turn. The 疾N badge still shows N. DataHash changes (荒野之魂) — client + server must ship
+    /// this same data + version (Hello handshake gates on it).</remarks>
     public const string Version = "0.13.0";
 
     /// <summary>压力潮汐 start round, forwarded from the (internal) <see cref="Engine.TurnFlow"/> so the client
