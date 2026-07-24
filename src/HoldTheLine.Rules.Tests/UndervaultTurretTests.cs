@@ -204,6 +204,106 @@ public class UndervaultTurretTests
         Assert.Equal(maxBefore + 1, t2.CurrentHp);
     }
 
+    [Fact]
+    public void Siphon_noHeal_whenShieldAbsorbsTheStrike()
+    {
+        // 用户改版: 攻击全程没造成伤害 → 不回血. Lone 持盾 target, no 溅射/贯穿 collateral, so the shot deals
+        // 0 HP total and the 吸血 module grants nothing — but the shield charge IS spent by the attack.
+        var (s, _, t) = Build(SiphonShell, SiphonCore); // atk 1 → 吸血 would be +0/+1 on a real hit
+        int maxBefore = t.MaxHp;                 // 3
+        Assert.Equal(maxBefore, t.CurrentHp);
+
+        var resolver = new Resolver(Db, Leaders);
+        var target = PlaceUnit(s, 1, "nl_caravan_guard", new Cell(2, 2)); // range 2 → no retaliation
+        target.ShieldActive = true;              // 持盾: absorbs the first hit
+
+        var res = resolver.Execute(s, new AttackCommand { Seat = 0, AttackerEntityId = t.EntityId, TargetUnitId = target.EntityId });
+        Assert.True(res.Success, res.Error?.Message);
+        var t2 = Turret(res.State!, 0);
+        Assert.Equal(maxBefore, t2.MaxHp);       // 无 +0/+N — 没造成伤害就不回血
+        Assert.Equal(maxBefore, t2.CurrentHp);
+        Assert.False(res.State!.FindUnit(target.EntityId)!.ShieldActive); // 盾已被这一击打破
+    }
+
+    [Fact]
+    public void Siphon_stillHeals_onceShieldIsBrokenBySecondHit()
+    {
+        // Sanity: with a second attack (快速装填机 gives 2 attacks) the now-shieldless target takes real
+        // damage on the follow-up, so 吸血 fires then — the gate is "did THIS strike land", not "ever attacked".
+        var (s, _, t) = Build(SiphonShell, Autoloader); // atk 1, 2 attacks/turn
+        int maxBefore = t.MaxHp;
+
+        var resolver = new Resolver(Db, Leaders);
+        var target = PlaceUnit(s, 1, "nl_caravan_guard", new Cell(2, 2));
+        target.ShieldActive = true;
+
+        // 1st: absorbed → no heal
+        var r1 = resolver.Execute(s, new AttackCommand { Seat = 0, AttackerEntityId = t.EntityId, TargetUnitId = target.EntityId });
+        Assert.True(r1.Success, r1.Error?.Message);
+        Assert.Equal(maxBefore, Turret(r1.State!, 0).MaxHp);
+
+        // 2nd: shield gone → real damage → +0/+1
+        var r2 = resolver.Execute(r1.State!, new AttackCommand { Seat = 0, AttackerEntityId = t.EntityId, TargetUnitId = target.EntityId });
+        Assert.True(r2.Success, r2.Error?.Message);
+        Assert.Equal(maxBefore + 1, Turret(r2.State!, 0).MaxHp);
+    }
+
+    [Fact]
+    public void Siphon_heals_whenSplashCollateralConnects_thoughMainHitIsShielded()
+    {
+        // 用户: 溅射/贯穿/践踏 附带伤害也算命中. 主目标持盾吸收主击(0 伤),但 溅射 打到相邻敌人 → 仍回血.
+        var (s, _, t) = Build(FragShell, SiphonShell); // 溅射Ⅰ(固定1) + 吸血Ⅰ(固定+1), atk 1
+        int maxBefore = t.MaxHp;
+
+        var resolver = new Resolver(Db, Leaders);
+        var main = PlaceUnit(s, 1, "nl_caravan_guard", new Cell(2, 2)); // 射程内主目标
+        main.ShieldActive = true;                                       // 持盾 → 主击 0 伤
+        PlaceUnit(s, 1, "nl_caravan_guard", new Cell(1, 2));            // 相邻敌人吃溅射
+
+        var res = resolver.Execute(s, new AttackCommand { Seat = 0, AttackerEntityId = t.EntityId, TargetUnitId = main.EntityId });
+        Assert.True(res.Success, res.Error?.Message);
+        var t2 = Turret(res.State!, 0);
+        Assert.Equal(maxBefore + 1, t2.MaxHp);      // 溅射命中相邻敌人 → 吸血Ⅰ +0/+1
+        Assert.Equal(maxBefore + 1, t2.CurrentHp);
+    }
+
+    [Fact]
+    public void Siphon_heals_onRetaliation_whenAttackedAndSurvivesToStrikeBack()
+    {
+        // 用户: 别人打我、我反击造成伤害 → 也回血. Enemy attacks my 吸血 turret; it survives (6 HP) and 反击
+        // draws blood → +0/+1. 反击伤 fed the DEFENDER's siphon, not the attacker's.
+        var (s, _, t) = Build(AnchorPlatform, SiphonShell); // 2/6, 射程2, 吸血Ⅰ(+1)
+        int maxBefore = t.MaxHp;                            // 6
+        Assert.Equal(2, t.Atk);
+
+        var attacker = PlaceUnit(s, 1, "nl_caravan_guard", new Cell(2, 1)); // 4/7, 相邻我方炮台
+        s.ActiveSeat = 1;                                                    // 敌方回合
+
+        var resolver = new Resolver(Db, Leaders);
+        var res = resolver.Execute(s, new AttackCommand { Seat = 1, AttackerEntityId = attacker.EntityId, TargetUnitId = t.EntityId });
+        Assert.True(res.Success, res.Error?.Message);
+        var t2 = Turret(res.State!, 0);
+        Assert.True(t2.CurrentHp > 0, "turret must survive the hit to gain 反击吸血");
+        Assert.Equal(maxBefore + 1, t2.MaxHp);   // 反击命中 → 吸血Ⅰ +0/+1 (上限 6→7)
+        Assert.Equal(maxBefore - 3 + 1, t2.CurrentHp); // 6 − 3(挨打4被架设平台坚守-1) + 1(吸血) = 4
+        // 反击 also actually hurt the attacker (证明 dealt>0 门控是真伤,不是"曾反击")
+        Assert.Equal(5, res.State!.FindUnit(attacker.EntityId)!.CurrentHp); // 7 − 2
+    }
+
+    [Fact]
+    public void Siphon_noRetaliationHeal_whenTurretDiesToTheAttack()
+    {
+        // 对照: 挨打即死 → 反击(模拟同时)也不回血,与攻击方"死于反击不回血"对称. Bare 1/3 turret vs 4-atk 打击.
+        var (s, _, t) = Build(SiphonShell); // 1/3
+        var attacker = PlaceUnit(s, 1, "nl_caravan_guard", new Cell(2, 1)); // atk 4 → lethal
+        s.ActiveSeat = 1;
+
+        var resolver = new Resolver(Db, Leaders);
+        var res = resolver.Execute(s, new AttackCommand { Seat = 1, AttackerEntityId = attacker.EntityId, TargetUnitId = t.EntityId });
+        Assert.True(res.Success, res.Error?.Message);
+        Assert.DoesNotContain(res.State!.Units, u => u.IsTurret && u.OwnerSeat == 0); // 炮台已亡,无从回血
+    }
+
     // ---- S6 炮台死亡与历史池 ----
 
     [Fact]

@@ -58,7 +58,10 @@ internal sealed class ResolutionContext
     /// attacks): a 架设 victim takes +1 (docs/06 §4). Applied up front, exactly where callers used to pre-add
     /// it. The 守护 recursion passes false — the +1 is already in the amount and the guardian's own 架设
     /// never re-adds (it was keyed on the ORIGINAL victim).</param>
-    public void DamageUnit(UnitInstance target, int amount, bool ignoreHoldFast = false, bool guardRedirected = false, string school = "physical", bool effectDamage = false)
+    /// <summary>Returns the HP actually lost by the unit that ended up taking the hit (0 when a 持盾 shield
+    /// absorbs it or the hit is immune/reduced-to-nothing). A 守护 redirect returns the guardian's HP loss.
+    /// Callers that key an effect on "the strike connected" (e.g. 吸血) test this &gt; 0.</summary>
+    public int DamageUnit(UnitInstance target, int amount, bool ignoreHoldFast = false, bool guardRedirected = false, string school = "physical", bool effectDamage = false)
     {
         if (effectDamage)
             amount = DamageMath.EffectAmountAgainst(target, amount);
@@ -77,23 +80,24 @@ internal sealed class ResolutionContext
         if (step.RedirectTo is { } guardian)
         {
             Emit(new UnitDamagedEvent { UnitEntityId = target.EntityId, Amount = 0, NewHp = target.CurrentHp, GuardRedirect = true });
-            DamageUnit(guardian, amount, ignoreHoldFast, guardRedirected: true, school);
-            return;
+            return DamageUnit(guardian, amount, ignoreHoldFast, guardRedirected: true, school);
         }
 
         switch (step.Kind)
         {
             case DamageOutcomeKind.NoDamage:
                 Emit(new UnitDamagedEvent { UnitEntityId = target.EntityId, Amount = 0, NewHp = target.CurrentHp, GuardRedirect = guardRedirected });
-                break;
+                return 0;
             case DamageOutcomeKind.ShieldAbsorbed:
                 target.ShieldActive = false;
                 Emit(new UnitDamagedEvent { UnitEntityId = target.EntityId, Amount = 0, NewHp = target.CurrentHp, ShieldAbsorbed = true, GuardRedirect = guardRedirected });
-                break;
+                return 0;
             case DamageOutcomeKind.HpLoss:
                 ApplyHpLoss(target, step.Amount);
                 Emit(new UnitDamagedEvent { UnitEntityId = target.EntityId, Amount = step.Amount, NewHp = target.CurrentHp, GuardRedirect = guardRedirected });
-                break;
+                return step.Amount;
+            default:
+                return 0;
         }
     }
 

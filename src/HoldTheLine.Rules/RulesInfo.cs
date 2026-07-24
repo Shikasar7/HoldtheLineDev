@@ -63,8 +63,18 @@ public static class RulesInfo
     /// 牌组上限 1 张 (DeckValidator per-card override), 母狼王 hp→6, 游群之王 hp→7, 掠猎巨狼 4/4→3/5,
     /// 掠群幼狼 1/1→1/2, 灼誓狂徒 3/1→1/3, 灰烬侍徒 1/1→1/2, 烬爆蛾/灰烬幼灵 +疾行1, 烬蚀之列/焰幕 5→4费;
     /// 烬火唱徒/烬眼先知/灰烬侍徒 texts now advertise the pre-existing 每回合 2 次 self-growth cap. Client adds a
-    /// 疾行 status badge (疾N). Client + server must ship this same data + version (Hello handshake gates on it).</remarks>
-    public const string Version = "0.11.0";
+    /// 疾行 status badge (疾N). Client + server must ship this same data + version (Hello handshake gates on it).
+    /// 0.11.1 (2026-07-24): 吸血 keys on damage actually dealt (用户). (a) An attack grants the siphon +0/+N only
+    /// when it dealt HP damage to ANY enemy — the main target OR 溅射/贯穿/践踏/分裂 collateral; a 持盾/免疫 main
+    /// target that absorbs its hit still 回血 if the collateral connects, but an attack that deals 0 全程 grants
+    /// nothing (was: any surviving turret attack healed regardless). Friendly-fire never counts. (b) 反击吸血 NEW:
+    /// a defending turret that survives and strikes back for real damage now also 回血 (+0/+N) — previously only
+    /// the initiating attacker could siphon. A turret killed by the attack does not gain (survival gate, matching
+    /// the attacker rule). DamageUnit returns the HP dealt; ResolveUnitAttack accumulates the attacker's enemy
+    /// total (ApplyTurretOnHit returns its splash total) for the attacker's siphon and separately fires the
+    /// defender's siphon on retaliation damage. Behavior-only (DataHash unchanged); server + client must ship
+    /// this same version (Hello handshake gates on it).</remarks>
+    public const string Version = "0.11.1";
 
     /// <summary>压力潮汐 start round, forwarded from the (internal) <see cref="Engine.TurnFlow"/> so the client
     /// HUD can show the tide countdown (docs/17) without hardcoding 8 and drifting from the rule. Read-only

@@ -501,15 +501,16 @@ public sealed class Resolver
         if (ctx.State.IsSmoked(attacker.Cell))
             return new RuleError(RuleErrorCode.Smoked, "烟幕中的随从无法攻击。");
 
-        var error = cmd.TargetLeader
+        var (error, dealtDamage) = cmd.TargetLeader
             ? ResolveLeaderAttack(ctx, cmd, attacker)
             : ResolveUnitAttack(ctx, cmd, attacker);
 
         if (error is null && ctx.State.FindUnit(attacker.EntityId) is { } alive)
         {
             // 吸血 (docs/20 §2.1, 用户改版): the turret GAINS +0/+N (permanent, 可超上限) after an attack — after
-            // retaliation, so a turret that died to a counter does not gain. 分级取最高 (S5b).
-            if (alive.Turret is not null)
+            // retaliation, so a turret that died to a counter does not gain. 分级取最高 (S5b). 用户改版: only when
+            // the strike actually dealt damage — a 持盾/免疫 target that absorbs the hit gives no 回血.
+            if (alive.Turret is not null && dealtDamage)
                 ApplyTurretSiphon(ctx, alive);
             // 潜行 (docs/21 §2): attacking reveals a Hidden attacker (if it survived retaliation).
             if (alive.HasKeyword(Keyword.Hidden))
@@ -523,36 +524,36 @@ public sealed class Resolver
     private static int MaxAttacksPerTurn(ResolutionContext ctx, UnitInstance unit) =>
         unit.Turret is { } t && t.Modules.Any(id => ctx.Db.Get(id).Module is { ExtraAttacks: > 0 }) ? 2 : 1;
 
-    private static RuleError? ResolveLeaderAttack(ResolutionContext ctx, AttackCommand cmd, UnitInstance attacker)
+    private static (RuleError?, bool) ResolveLeaderAttack(ResolutionContext ctx, AttackCommand cmd, UnitInstance attacker)
     {
         if (attacker.Cell.Row != BoardGeometry.EnemyHomeRow(cmd.Seat))
-            return new RuleError(RuleErrorCode.NotOnEnemyHomeRow, "Leaders can only be attacked from their home row (GDD §2.5).");
+            return (new RuleError(RuleErrorCode.NotOnEnemyHomeRow, "Leaders can only be attacked from their home row (GDD §2.5)."), false);
         if (AdjacentEnemyTaunts(ctx.State, attacker).Count > 0)
-            return new RuleError(RuleErrorCode.GuardEnforced, "相邻的敌方嘲讽随从必须优先攻击。");
+            return (new RuleError(RuleErrorCode.GuardEnforced, "相邻的敌方嘲讽随从必须优先攻击。"), false);
 
         attacker.AttacksUsed++;
         int defendingSeat = 1 - cmd.Seat;
         ctx.Emit(new AttackedEvent { AttackerEntityId = attacker.EntityId, TargetLeaderSeat = defendingSeat });
         ctx.DamageLeader(defendingSeat, attacker.Atk); // leader attacks are never retaliated
-        return null;
+        return (null, attacker.Atk > 0); // 吸血 keys on damage dealt; leaders have no 持盾, so any atk>0 connects
     }
 
-    private static RuleError? ResolveUnitAttack(ResolutionContext ctx, AttackCommand cmd, UnitInstance attacker)
+    private static (RuleError?, bool) ResolveUnitAttack(ResolutionContext ctx, AttackCommand cmd, UnitInstance attacker)
     {
         if (cmd.TargetUnitId is null)
-            return new RuleError(RuleErrorCode.InvalidTarget, "Attack requires a target unit or TargetLeader.");
+            return (new RuleError(RuleErrorCode.InvalidTarget, "Attack requires a target unit or TargetLeader."), false);
         var target = ctx.State.FindUnit(cmd.TargetUnitId.Value);
         if (target is null)
-            return new RuleError(RuleErrorCode.UnknownEntity, $"Unit {cmd.TargetUnitId.Value} does not exist.");
+            return (new RuleError(RuleErrorCode.UnknownEntity, $"Unit {cmd.TargetUnitId.Value} does not exist."), false);
         if (target.OwnerSeat == cmd.Seat)
-            return new RuleError(RuleErrorCode.InvalidTarget, "Cannot attack a friendly unit.");
+            return (new RuleError(RuleErrorCode.InvalidTarget, "Cannot attack a friendly unit."), false);
 
         int range = attacker.HasKeyword(Keyword.Range) ? attacker.KeywordValue(Keyword.Range) : 0;
 
         if (range == 0)
         {
             if (!BoardGeometry.AreAdjacent(attacker.Cell, target.Cell))
-                return new RuleError(RuleErrorCode.NotAdjacent, "Melee units attack adjacent enemies only.");
+                return (new RuleError(RuleErrorCode.NotAdjacent, "Melee units attack adjacent enemies only."), false);
         }
         else
         {
@@ -561,13 +562,13 @@ public sealed class Resolver
             // blocking). See GDD §2.5 (2026-07-17 revision).
             int distance = BoardGeometry.StepDistance(attacker.Cell, target.Cell);
             if (distance > range)
-                return new RuleError(RuleErrorCode.OutOfRange, $"Target is {distance} steps away; range is {range}.");
+                return (new RuleError(RuleErrorCode.OutOfRange, $"Target is {distance} steps away; range is {range}."), false);
         }
 
         // 嘲讽: an attacker adjacent to any enemy Taunt must pick one of those Taunts.
         var taunts = AdjacentEnemyTaunts(ctx.State, attacker);
         if (taunts.Count > 0 && !taunts.Contains(target.EntityId))
-            return new RuleError(RuleErrorCode.GuardEnforced, "相邻的敌方嘲讽随从必须优先攻击。");
+            return (new RuleError(RuleErrorCode.GuardEnforced, "相邻的敌方嘲讽随从必须优先攻击。"), false);
 
         attacker.AttacksUsed++;
         ctx.Emit(new AttackedEvent { AttackerEntityId = attacker.EntityId, TargetUnitId = target.EntityId });
@@ -587,9 +588,13 @@ public sealed class Resolver
                 .Select(ctx.State.UnitAt)
                 .Count(u => u != null && u.OwnerSeat == cmd.Seat && u.EntityId != attacker.EntityId) * 2
             : 0;
-        ctx.DamageUnit(target, attacker.Atk + packBonus);
-        if (retaliates)
-            ctx.DamageUnit(attacker, target.Atk);
+        // 吸血 keys on the attack dealing damage to ANY enemy — the main target OR 溅射/贯穿/践踏 collateral (用户).
+        // A 持盾/免疫 main target that absorbs its hit still lets the turret 回血 when the collateral connects; only
+        // 全程 0 伤害 (everything absorbed / nothing hit) denies the siphon. Self-retaliation / friendly-fire never count.
+        int dealtToEnemies = ctx.DamageUnit(target, attacker.Atk + packBonus); // main target is always an enemy
+        // 反击 (retaliation): the defender strikes the attacker back. This damage is TO the attacker, so it never
+        // feeds the ATTACKER's 吸血 — but a defending turret that draws blood here 回血 via 反击吸血 below (用户).
+        int retaliationDealt = retaliates ? ctx.DamageUnit(attacker, target.Atk) : 0;
 
         // 践踏 (Trample): a melee attack shakes the ground — every unit adjacent to the target's cell,
         // friend or foe (the attacker excepted), takes the attacker's Atk as well. No retaliation from
@@ -600,7 +605,9 @@ public sealed class Resolver
                          .Select(ctx.State.UnitAt)
                          .Where(u => u != null && u.EntityId != attacker.EntityId))
             {
-                ctx.DamageUnit(bystander!, attacker.Atk);
+                int d = ctx.DamageUnit(bystander!, attacker.Atk);
+                if (bystander!.OwnerSeat != attacker.OwnerSeat)
+                    dealtToEnemies += d; // enemy collateral feeds 吸血; friendly-fire does not
             }
         }
 
@@ -612,22 +619,30 @@ public sealed class Resolver
             && BoardGeometry.IsInside(behindCell)
             && ctx.State.UnitAt(behindCell) is { } behindUnit)
         {
-            ctx.DamageUnit(behindUnit, attacker.Atk);
+            int d = ctx.DamageUnit(behindUnit, attacker.Atk);
+            if (behindUnit.OwnerSeat != attacker.OwnerSeat)
+                dealtToEnemies += d; // 贯穿 into an enemy feeds 吸血; into a friendly does not
         }
 
         // 掘世匠会 炮台命中管线 (docs/20 §2.1): 分裂/溅射/迟缓 fire on the target's neighbours after a turret hit.
         if (attacker.Turret is not null)
-            ApplyTurretOnHit(ctx, attacker, target);
+            dealtToEnemies += ApplyTurretOnHit(ctx, attacker, target);
 
         ctx.ProcessDeaths();
+        // 反击吸血 (用户): a defending turret that struck back and drew blood 回血 too — same +0/+N as an attack.
+        // Gated on the defender surviving the exchange (a turret killed by the attack does not gain, matching the
+        // attacker's 吸血 rule) and on the 反击 actually connecting (0 when the attacker 持盾-absorbs it).
+        if (retaliationDealt > 0 && ctx.State.FindUnit(target.EntityId) is { Turret: not null } retaliator)
+            ApplyTurretSiphon(ctx, retaliator);
         ctx.CheckGameEnd();
-        return null;
+        return (null, dealtToEnemies > 0);
     }
 
     /// <summary>掘世匠会 炮台命中管线 (docs/20 §2.1): after a turret attack, its 分裂/溅射/迟缓 modules fire on the
     /// target's neighbours. 分级取最高 逐次比较 (S5b): 溅射Ⅰ(固定1) vs 溅射Ⅱ(⌈atk/2⌉) per victim. Splash is ATTACK
-    /// damage — physical, 无架设+1, 无反击 (溅射是践踏的远程表亲, §5) — enemies only. Deaths swept by the caller.</summary>
-    private static void ApplyTurretOnHit(ResolutionContext ctx, UnitInstance turret, UnitInstance target)
+    /// damage — physical, 无架设+1, 无反击 (溅射是践踏的远程表亲, §5) — enemies only. Deaths swept by the caller.
+    /// Returns the total HP actually dealt to those enemies, so the caller can feed it to 吸血 (用户).</summary>
+    private static int ApplyTurretOnHit(ResolutionContext ctx, UnitInstance turret, UnitInstance target)
     {
         int atk = turret.Atk;
         int half = (atk + 1) / 2; // ⌈atk/2⌉
@@ -641,13 +656,15 @@ public sealed class Resolver
                 case "concussion": concussion = true; break;
             }
 
+        int dealt = 0;
+
         // 溅射 (frag/blast, 取最高): every enemy adjacent to the target takes max(固定1, ⌈atk/2⌉).
         if (frag || blast)
         {
             int splash = Math.Max(frag ? 1 : 0, blast ? half : 0);
             if (splash > 0)
                 foreach (var v in AdjacentEnemies(ctx, turret, target).ToList())
-                    ctx.DamageUnit(v, splash);
+                    dealt += ctx.DamageUnit(v, splash);
         }
 
         // 分裂 (split): one RANDOM other adjacent enemy takes ⌈atk/2⌉ (match Rng → replay-deterministic).
@@ -655,12 +672,14 @@ public sealed class Resolver
         {
             var neighbours = AdjacentEnemies(ctx, turret, target).ToList();
             if (neighbours.Count > 0)
-                ctx.DamageUnit(neighbours[ctx.State.Rng.NextInt(neighbours.Count)], half);
+                dealt += ctx.DamageUnit(neighbours[ctx.State.Rng.NextInt(neighbours.Count)], half);
         }
 
         // 迟缓 (震撼弹, docs/20 §S12): the target 下回合无法移动 — 定身 until the owner's next turn (灰缚 原语).
         if (concussion && ctx.State.FindUnit(target.EntityId) is { CurrentHp: > 0 } t)
             ctx.GrantKeyword(t, Keyword.Rooted, 0, "your_next_turn", turret.OwnerSeat);
+
+        return dealt;
     }
 
     /// <summary>吸血 (docs/20 §2.1, 用户改版): after an attack the turret GAINS a permanent +0/+N 增益 (直接加生命
