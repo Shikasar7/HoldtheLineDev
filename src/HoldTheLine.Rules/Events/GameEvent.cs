@@ -202,6 +202,7 @@ public sealed record LeaderSkillUsedEvent : GameEvent
     public required int Seat { get; init; }
     public required string LeaderId { get; init; }
     public int? TargetUnitId { get; init; }
+    public Cell? TargetCell { get; init; }
 }
 
 public sealed record LeaderDamagedEvent : GameEvent

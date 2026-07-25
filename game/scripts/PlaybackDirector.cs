@@ -40,6 +40,7 @@ public sealed class PlaybackDirector
 	private readonly IPlaybackHost _view; // board geometry + scene callbacks (minimal surface)
 	private readonly Control _overlayLayer;
 	private readonly CardDatabase _cards;
+	private readonly LeaderDatabase _leaders;
 	private readonly SfxBank _sfx;
 
 	// Presentation queue (plan §10 item 9). Every public event — whether the in-process host dispatched
@@ -52,12 +53,14 @@ public sealed class PlaybackDirector
 
 	private Tween? _shakeTween; // active screen-shake tween (item 2/6), killed before a new one starts
 
-	public PlaybackDirector(Control host, IPlaybackHost view, Control overlayLayer, CardDatabase cards, SfxBank sfx)
+	public PlaybackDirector(Control host, IPlaybackHost view, Control overlayLayer, CardDatabase cards,
+		LeaderDatabase leaders, SfxBank sfx)
 	{
 		_h = host;
 		_view = view;
 		_overlayLayer = overlayLayer;
 		_cards = cards;
+		_leaders = leaders;
 		_sfx = sfx;
 	}
 
@@ -205,6 +208,9 @@ public sealed class PlaybackDirector
 				_view.RefreshStandeeStatus(kg.UnitEntityId); // 持盾新增 → 立刻更新卡面指示器
 				await Delay(0.1);
 				break;
+			case LeaderSkillUsedEvent leaderSkill:
+				await PlayLeaderSkill(leaderSkill);
+				break;
 			case PressureTideEvent tide:
 				// 压力潮汐: the bleed is explained here; the follow-up LeaderDamagedEvent animates the HP hit.
 				_sfx.Play("tide");
@@ -280,6 +286,288 @@ public sealed class PlaybackDirector
 	}
 
 	private readonly record struct StatBeat(string Text, Color Color, string? TargetNode);
+
+	// ---------- leader skill signatures ----------
+
+	/// <summary>Every committed leader skill is a public event, so this single presentation path runs for
+	/// the caster and the opponent in local, AI and online games. The callout answers who/what; the board-space
+	/// signature answers where. Rules resolution remains entirely event-driven after this beat.</summary>
+	private async Task PlayLeaderSkill(LeaderSkillUsedEvent e)
+	{
+		if (!_leaders.TryGet(e.LeaderId, out var leader)) return;
+		Color accent = LeaderAccent(leader.Faction);
+		SpawnLeaderCallout(leader, e.Seat, accent);
+		Flash(_view.LeaderPlate(e.Seat), accent.Lightened(0.18f));
+
+		string cue = leader.SkillFx switch
+		{
+			"shield_oath" => "leader_shield",
+			"hunting_horn" => "leader_horn",
+			"ember_scar" => "leader_ember",
+			"forge_turret" => "leader_forge",
+			_ => "cast",
+		};
+		_sfx.Play(cue);
+		await Delay(0.16);
+
+		Vector2 target = SkillTargetCenter(e);
+		switch (leader.SkillFx)
+		{
+			case "shield_oath":
+				await PlayShieldOath(e, target);
+				break;
+			case "hunting_horn":
+				await PlayHuntingHorn(e, target);
+				break;
+			case "ember_scar":
+				await PlayEmberScar(e);
+				break;
+			case "forge_turret":
+				await PlayForgeTurret(e);
+				break;
+			default:
+				SpawnImpactRing(target, 54f, accent, 2);
+				Burst(target, accent, 8, 56f, 0.28);
+				await Delay(0.3);
+				break;
+		}
+		await Delay(0.12);
+	}
+
+	private static Color LeaderAccent(string faction) => faction switch
+	{
+		"iron_vow" => new Color("75a9d6"),
+		"wildpack" => new Color("d6aa45"),
+		"duskweaver" => new Color("d2644d"),
+		"undervault" => new Color("4db5aa"),
+		_ => BattleTheme.Accent,
+	};
+
+	/// <summary>A compact illustrated command strip, mirrored to the caster's side. It deliberately leaves the
+	/// board centre uncovered: portrait, skill name and one line of character voice are readable at a glance.</summary>
+	private void SpawnLeaderCallout(LeaderDefinition leader, int seat, Color accent)
+	{
+		bool mine = seat == _view.ViewSeat;
+		var size = new Vector2(660, 150);
+		var final = new Vector2(mine ? 64 : BattleTheme.ScreenW - size.X - 64, mine ? 620 : 150);
+		var root = new Panel
+		{
+			Position = new Vector2(mine ? -size.X - 20 : BattleTheme.ScreenW + 20, final.Y),
+			Size = size,
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			ClipContents = true,
+			Modulate = new Color(1, 1, 1, 0.98f),
+		};
+		var frame = new StyleBoxFlat
+		{
+			BgColor = new Color(0.045f, 0.038f, 0.03f, 0.96f),
+			BorderColor = accent,
+			ShadowColor = new Color(0, 0, 0, 0.55f),
+			ShadowSize = 10,
+		};
+		frame.BorderWidthTop = frame.BorderWidthBottom = 3;
+		frame.BorderWidthLeft = frame.BorderWidthRight = 2;
+		frame.SetCornerRadiusAll(12);
+		root.AddThemeStyleboxOverride("panel", frame);
+
+		float portraitX = mine ? 8f : size.X - 142f;
+		var portraitFrame = new Panel
+		{
+			Position = new Vector2(portraitX, 8),
+			Size = new Vector2(134, 134),
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			ClipContents = true,
+		};
+		portraitFrame.AddThemeStyleboxOverride("panel",
+			BattleTheme.Box(new Color(0.08f, 0.07f, 0.055f), accent.Lightened(0.12f), 3, 9));
+		if (BattleTheme.Tex($"leaders/{leader.Id}.png") is { } portrait)
+			portraitFrame.AddChild(BattleTheme.Art(portrait, new Vector2(4, 4), new Vector2(126, 126)));
+		root.AddChild(portraitFrame);
+
+		float textX = mine ? 164f : 24f;
+		float textW = size.X - 188f;
+		var who = BattleTheme.MakeOutlinedLabel($"{leader.Name}  ·  {leader.SkillName}", 21, accent);
+		who.Position = new Vector2(textX, 18); who.Size = new Vector2(textW, 32);
+		root.AddChild(who);
+		var quote = BattleTheme.MakeOutlinedLabel($"“{leader.SkillQuote}”", 28, BattleTheme.TextMain);
+		quote.AddThemeFontOverride("font", BattleTheme.HeadingFont);
+		quote.Position = new Vector2(textX, 50); quote.Size = new Vector2(textW, 76);
+		quote.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+		root.AddChild(quote);
+
+		var edge = new ColorRect
+		{
+			Color = new Color(accent.R, accent.G, accent.B, 0.75f),
+			Position = new Vector2(mine ? 150 : size.X - 154, 12),
+			Size = new Vector2(4, 126),
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+		};
+		root.AddChild(edge);
+		_overlayLayer.AddChild(root);
+
+		var tween = _h.CreateTween();
+		tween.TweenProperty(root, "position", final, 0.18)
+			.SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+		tween.TweenInterval(0.52);
+		tween.TweenProperty(root, "modulate:a", 0f, 0.16);
+		tween.TweenCallback(Callable.From(root.QueueFree));
+	}
+
+	private Vector2 SkillTargetCenter(LeaderSkillUsedEvent e)
+	{
+		if (e.TargetUnitId is int unitId && _view.Standee(unitId) is { } unit)
+			return Center(unit);
+		if (e.TargetCell is { } cell)
+			return _view.CellScreenPos(cell) + new Vector2(BattleTheme.CellW / 2f, BattleTheme.CellH / 2f);
+		return Center(_view.LeaderPlate(e.Seat));
+	}
+
+	private async Task PlayShieldOath(LeaderSkillUsedEvent e, Vector2 center)
+	{
+		if (e.TargetUnitId is int id && _view.Standee(id) is { } target)
+			Flash(target, new Color("87bde6"));
+		ShieldPop(center);
+		SpawnImpactRing(center, 66f, new Color("8fc8ee"), 3);
+		Burst(center, new Color("c7e9ff"), 10, 70f, 0.32);
+		_view.FloatText(center + new Vector2(-58, -62), "铁誓·授盾", new Color("8fc8ee"));
+		await Delay(0.36);
+	}
+
+	private async Task PlayHuntingHorn(LeaderSkillUsedEvent e, Vector2 center)
+	{
+		Vector2 source = Center(_view.LeaderPlate(e.Seat));
+		var wind = new Color("e4bd59");
+		for (int i = -1; i <= 1; i++)
+			SkillTrail(source + new Vector2(0, i * 9), center + new Vector2(0, i * 7), wind, 0.28 + i * 0.02);
+		SpawnImpactRing(center, 58f, wind, 2);
+		SpawnImpactRing(center, 82f, new Color("75c8a7"), 2);
+		Burst(center, new Color("d8efb0"), 12, 88f, 0.34);
+		if (e.TargetUnitId is int id && _view.Standee(id) is { } target)
+			Flash(target, new Color("cddd7c"));
+		_view.FloatText(center + new Vector2(-70, -66), "疾风·偷袭", new Color("d7c85b"));
+		await Delay(0.4);
+	}
+
+	private async Task PlayEmberScar(LeaderSkillUsedEvent e)
+	{
+		if (e.TargetCell is not { } origin) return;
+		var cells = new List<Cell> { origin };
+		foreach (var (dc, dr) in new[] { (-1, 0), (1, 0), (0, -1), (0, 1) })
+		{
+			var cell = new Cell(origin.Col + dc, origin.Row + dr);
+			if (BoardGeometry.IsInside(cell)) cells.Add(cell);
+		}
+		for (int i = 0; i < cells.Count; i++)
+		{
+			Vector2 center = _view.CellScreenPos(cells[i]) + new Vector2(BattleTheme.CellW / 2f, BattleTheme.CellH / 2f);
+			Color ember = i == 0 ? new Color("ff6d3a") : new Color("d74832");
+			SpawnImpactRing(center, i == 0 ? 74f : 56f, ember, i == 0 ? 4 : 2);
+			Burst(center, ember.Lightened(0.2f), i == 0 ? 14 : 8, i == 0 ? 84f : 60f, 0.34);
+			var scorch = new Panel
+			{
+				Position = _view.CellScreenPos(cells[i]) + new Vector2(7, 7),
+				Size = new Vector2(BattleTheme.CellW - 14, BattleTheme.CellH - 14),
+				MouseFilter = Control.MouseFilterEnum.Ignore,
+			};
+			scorch.AddThemeStyleboxOverride("panel",
+				BattleTheme.Box(new Color(ember.R, ember.G, ember.B, 0.13f), new Color(ember.R, ember.G, ember.B, 0.8f), 3, 10));
+			_overlayLayer.AddChild(scorch);
+			var t = _h.CreateTween();
+			t.TweenProperty(scorch, "modulate:a", 0f, 0.46);
+			t.TweenCallback(Callable.From(scorch.QueueFree));
+			await Delay(0.045);
+		}
+		ScreenShake(2.5f);
+		Vector2 originCenter = _view.CellScreenPos(origin) + new Vector2(BattleTheme.CellW / 2f, BattleTheme.CellH / 2f);
+		_view.FloatText(originCenter + new Vector2(-60, -70), "十字灼痕", new Color("ff7950"));
+		await Delay(0.32);
+	}
+
+	private async Task PlayForgeTurret(LeaderSkillUsedEvent e)
+	{
+		if (e.TargetCell is not { } cell) return;
+		Vector2 topLeft = _view.CellScreenPos(cell);
+		Vector2 center = topLeft + new Vector2(BattleTheme.CellW / 2f, BattleTheme.CellH / 2f);
+		var brass = new Color("d5a74a");
+		var blueprint = new Color("57c7bd");
+		var grid = new Panel
+		{
+			Position = topLeft + new Vector2(6, 6),
+			Size = new Vector2(BattleTheme.CellW - 12, BattleTheme.CellH - 12),
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			Modulate = new Color(1, 1, 1, 0),
+		};
+		grid.AddThemeStyleboxOverride("panel",
+			BattleTheme.Box(new Color(blueprint.R, blueprint.G, blueprint.B, 0.10f), blueprint, 3, 7));
+		for (int i = 1; i < 4; i++)
+			grid.AddChild(new ColorRect
+			{
+				Color = new Color(blueprint.R, blueprint.G, blueprint.B, 0.42f),
+				Position = new Vector2(grid.Size.X * i / 4f, 5),
+				Size = new Vector2(1, grid.Size.Y - 10),
+				MouseFilter = Control.MouseFilterEnum.Ignore,
+			});
+		for (int i = 1; i < 3; i++)
+			grid.AddChild(new ColorRect
+			{
+				Color = new Color(blueprint.R, blueprint.G, blueprint.B, 0.42f),
+				Position = new Vector2(5, grid.Size.Y * i / 3f),
+				Size = new Vector2(grid.Size.X - 10, 1),
+				MouseFilter = Control.MouseFilterEnum.Ignore,
+			});
+		_overlayLayer.AddChild(grid);
+		var scan = _h.CreateTween();
+		scan.TweenProperty(grid, "modulate:a", 1f, 0.10);
+		scan.TweenInterval(0.24);
+		scan.TweenProperty(grid, "modulate:a", 0f, 0.22);
+		scan.TweenCallback(Callable.From(grid.QueueFree));
+		SpawnImpactRing(center, 68f, brass, 3);
+		Burst(center, brass.Lightened(0.25f), 16, 78f, 0.38);
+		_view.FloatText(center + new Vector2(-64, -68), "蓝图锁定·铆接", brass);
+		await Delay(0.42);
+	}
+
+	private void SkillTrail(Vector2 from, Vector2 to, Color color, double duration)
+	{
+		Vector2 delta = to - from;
+		var line = new ColorRect
+		{
+			Color = new Color(color.R, color.G, color.B, 0.78f),
+			Position = from,
+			Size = new Vector2(delta.Length(), 4),
+			Rotation = delta.Angle(),
+			Scale = new Vector2(0.02f, 1f),
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+		};
+		_overlayLayer.AddChild(line);
+		var t = _h.CreateTween();
+		t.TweenProperty(line, "scale:x", 1f, duration * 0.55).SetTrans(Tween.TransitionType.Cubic);
+		t.TweenProperty(line, "modulate:a", 0f, duration * 0.45);
+		t.TweenCallback(Callable.From(line.QueueFree));
+	}
+
+	private void Burst(Vector2 center, Color color, int count, float radius, double duration)
+	{
+		for (int i = 0; i < count; i++)
+		{
+			float angle = i * Mathf.Tau / count + (i % 3) * 0.11f;
+			float length = radius * (0.72f + (i % 4) * 0.09f);
+			var mote = new ColorRect
+			{
+				Color = new Color(color.R, color.G, color.B, 0.9f),
+				Position = center - new Vector2(3, 2),
+				Size = new Vector2(6 + i % 3 * 2, 3),
+				Rotation = angle,
+				MouseFilter = Control.MouseFilterEnum.Ignore,
+			};
+			_overlayLayer.AddChild(mote);
+			var t = _h.CreateTween();
+			t.TweenProperty(mote, "position", mote.Position + Vector2.FromAngle(angle) * length, duration)
+				.SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
+			t.Parallel().TweenProperty(mote, "modulate:a", 0f, duration);
+			t.TweenCallback(Callable.From(mote.QueueFree));
+		}
+	}
 
 	/// <summary>A restrained assembly pulse followed by explicit before→after stat receipts.</summary>
 	private async Task PlayModuleInstallFx(Control turret, int entityId, string label, Color quality,

@@ -7,6 +7,8 @@
     "skill_name": "授盾",
     "text": "授盾(2费):使一个友方随从获得一次持盾(抵挡下一次受到的伤害)。",
     "art_prompt": "a veteran commander of the iron oath, greatshield planted, stern and grey",
+    "skill_quote": "盾墙向前。此处，不得失守！",
+    "skill_fx": "shield_oath",
     "skill_effects": [
       {
         "trigger": "leader_skill",
@@ -25,6 +27,8 @@
     "skill_name": "狩猎号角",
     "text": "狩猎号角(2费):使一个友方随从本回合移动力 +1,并获得偷袭直到回合结束。",
     "art_prompt": "a wind-speaker warchief with a great curved horn, feathers and beast-bone",
+    "skill_quote": "听见了吗？风正在催我们狩猎！",
+    "skill_fx": "hunting_horn",
     "skill_effects": [
       {
         "trigger": "leader_skill",
@@ -49,6 +53,8 @@
     "skill_name": "灼痕",
     "text": "灼痕(3费):对一个格子及其相邻格的所有随从造成 1 点伤害(含友方)。",
     "art_prompt": "a pale sorceress with ash-streaked hair and faint ember-glow tattoos, dusk-purple robes, calm and burning",
+    "skill_quote": "余烬会记住每一个名字。",
+    "skill_fx": "ember_scar",
     "skill_effects": [
       {
         "trigger": "leader_skill",
@@ -66,6 +72,8 @@
     "skill_name": "铸炮",
     "text": "铸炮(1费):在你的底线行选择一个空格,放置一座工造炮台。场上已有你的炮台时不可使用。",
     "art_prompt": "a grizzled dwarf chief engineer with a brass monocle, soot-streaked beard, blueprints under one arm",
+    "skill_quote": "量过了，铆死它——开工！",
+    "skill_fx": "forge_turret",
     "skill_effects": [
       {
         "trigger": "leader_skill",

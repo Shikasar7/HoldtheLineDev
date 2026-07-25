@@ -731,7 +731,13 @@ public sealed class Resolver
 
         player.Mana -= leader.SkillCost;
         player.LeaderSkillUsedThisTurn = true;
-        ctx.Emit(new LeaderSkillUsedEvent { Seat = cmd.Seat, LeaderId = leader.Id, TargetUnitId = cmd.TargetUnitId });
+        ctx.Emit(new LeaderSkillUsedEvent
+        {
+            Seat = cmd.Seat,
+            LeaderId = leader.Id,
+            TargetUnitId = cmd.TargetUnitId,
+            TargetCell = cmd.TargetCell,
+        });
         EffectEngine.RunTrigger(ctx, source: null, cmd.Seat, leader.SkillEffects, "leader_skill", cmd.TargetUnitId, cmd.TargetCell);
         ctx.CheckGameEnd();
         return null;

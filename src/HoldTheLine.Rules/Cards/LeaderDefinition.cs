@@ -13,6 +13,10 @@ public sealed record LeaderDefinition
     public string SkillName { get; init; } = "";
     public string Text { get; init; } = "";
     public string ArtPrompt { get; init; } = "";
+    /// <summary>Short in-character line shown to both players when the skill is committed.</summary>
+    public string SkillQuote { get; init; } = "";
+    /// <summary>Presentation key for the client-side skill effect. Rules never branch on this value.</summary>
+    public string SkillFx { get; init; } = "";
     public IReadOnlyList<EffectSpec> SkillEffects { get; init; } = [];
 
     /// <summary>Whether the skill needs an explicit unit target (derived from its effects).</summary>

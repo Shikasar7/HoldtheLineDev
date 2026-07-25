@@ -37,6 +37,11 @@ public sealed class SfxBank
         LoadOrFallback("module_install", Tone(392f, 0.42f, 7f, Wave.Triangle, 0.34f, noise: 0.06f)); // 炮台装配,柔和棘轮
         LoadOrFallback("turret_fire", Tone(142f, 0.24f, 11f, Wave.Sine, 0.48f, noise: 0.1f)); // 轻炮
         LoadOrFallback("turret_fire_heavy", Tone(82f, 0.40f, 7f, Wave.Sine, 0.62f, noise: 0.12f)); // 贯日主炮
+        // --- leader signatures: four deliberately different silhouettes, paired with the on-screen quote ---
+        LoadOrFallback("leader_shield", Tone(196f, 0.46f, 4f, Wave.Triangle, 0.58f, noise: 0.05f)); // steel oath
+        LoadOrFallback("leader_horn", Phrase(new[] { (196f, 0.00f, 0.42f), (294f, 0.10f, 0.58f) }, 0.48f)); // hunting call
+        LoadOrFallback("leader_ember", Tone(92f, 0.62f, 3f, Wave.Sine, 0.55f, noise: 0.18f)); // ember bloom
+        LoadOrFallback("leader_forge", Phrase(new[] { (110f, 0.00f, 0.22f), (165f, 0.18f, 0.22f), (220f, 0.36f, 0.36f) }, 0.44f)); // rivet cadence
         LoadOrFallback("death", Tone(90f, 0.22f, 7f, Wave.Square, 0.5f, noise: 0.55f));       // unit death
         LoadOrFallback("leaderhit", Tone(60f, 0.30f, 4f, Wave.Sine, 0.85f, noise: 0.15f));    // leader damage
         // --- flow / feedback ---

@@ -1,6 +1,7 @@
 using HoldTheLine.Net.Protocol;
 using HoldTheLine.Rules.Commands;
 using HoldTheLine.Rules.Events;
+using HoldTheLine.Rules.Geometry;
 using HoldTheLine.Rules.Hosting;
 using Xunit;
 
@@ -90,9 +91,14 @@ public class ProtocolSerializationTests
             Batch = [
                 new TurnStartedEvent { Seat = 0, TurnNumber = 1, Mana = 1, ManaMax = 1 },
                 new CardDrawnEvent { Seat = 0, CardEntityId = 3, CardId = "iron_recruit" },
+                // Both clients need the public target cell to reproduce cell-targeted leader-skill FX.
+                new LeaderSkillUsedEvent
+                {
+                    Seat = 1, LeaderId = "leader_dw_vela", TargetCell = new Cell(2, 1),
+                },
             ],
             View = MinimalView(),
-            EventIndex = 2,
+            EventIndex = 3,
         });
         RoundTripsServer(new OpponentStatus { Connected = false, GraceSeconds = 120 });
         RoundTripsServer(new TurnTimer { Seat = 1, SecondsLeft = 30 });

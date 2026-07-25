@@ -160,7 +160,7 @@ public partial class BattleScene : Control, IPlaybackHost, ITargetingHost
 
 		BuildStaticUi();
 		_sfx = new SfxBank(this);
-		_director = new PlaybackDirector(this, this, _overlayLayer, _cards, _sfx);
+		_director = new PlaybackDirector(this, this, _overlayLayer, _cards, _leaders, _sfx);
 		_mulligan = new MulliganPanel(_overlayLayer, _handLayer, _sfx, _cards);
 		_matchEnd = new MatchEndPanel(this, _overlayLayer, _sfx, _online);
 		_menu = new GameMenuPanel(_overlayLayer, this, _sfx, _cards, _online,
@@ -1242,7 +1242,15 @@ public partial class BattleScene : Control, IPlaybackHost, ITargetingHost
 	void ITargetingHost.HighlightCell(Cell cell) => HighlightCell(cell);
 	void ITargetingHost.HighlightUnit(int unitId, PickHighlight color) => HighlightUnitColor(unitId, PickColor(color));
 	void ITargetingHost.HighlightLeader() => HighlightLeader();
-	void ITargetingHost.RefreshSelectionUi() => RefreshSelectionUi();
+	void ITargetingHost.RefreshSelectionUi()
+	{
+		// Effect aiming owns the board's attention: keep the large inspector out of the way so target
+		// highlights, leader callouts, and the eventual impact remain readable. Unit move/attack selection
+		// intentionally keeps its old inspect-on-first-click behaviour.
+		if (_targeting.Kind is TargetingKind.Card or TargetingKind.Leader)
+			HideDetail();
+		RefreshSelectionUi();
+	}
 	void ITargetingHost.ShowEchoBar(bool global) => ShowEchoBar(global);
 	void ITargetingHost.CloseEchoBar() => CloseEchoBar();
 	void ITargetingHost.Log(string message) => Log(message);
@@ -1316,9 +1324,17 @@ public partial class BattleScene : Control, IPlaybackHost, ITargetingHost
 
 	private void OnUnitClicked(int entityId)
 	{
-		// Inspecting a piece works any time — even during animations or the AI's turn.
-		var unit = _host.GetView(ViewSeat).Units.FirstOrDefault(u => u.EntityId == entityId);
-		if (unit != null) ShowUnitDetail(unit);
+		bool isEffectTargetPick = _targeting.Kind is TargetingKind.Card or TargetingKind.Leader;
+
+		// A click while aiming an order / leader skill means "choose this target", not "inspect it".
+		// Outside effect aiming, inspecting a piece still works during animations and the AI's turn.
+		if (isEffectTargetPick)
+			HideDetail();
+		else
+		{
+			var unit = _host.GetView(ViewSeat).Units.FirstOrDefault(u => u.EntityId == entityId);
+			if (unit != null) ShowUnitDetail(unit);
+		}
 
 		if (_busy) return;
 
@@ -1340,6 +1356,9 @@ public partial class BattleScene : Control, IPlaybackHost, ITargetingHost
 	private void OnLeaderPower()
 	{
 		if (_busy) return;
+		// Untargeted leader skills can submit before the targeting controller refreshes the UI, so close
+		// an inspector here as well. This also gives targeted skills a clean board from the first frame.
+		HideDetail();
 		_sfx.Play("button");
 		_targeting.SelectLeaderSkill();
 	}
