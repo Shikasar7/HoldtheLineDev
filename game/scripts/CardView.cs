@@ -13,8 +13,12 @@ namespace HoldTheLine.Game;
 /// </summary>
 public static class CardView
 {
-    /// <summary>Freely framed art for standalone rectangular surfaces without a faction-frame mask.</summary>
-    public static Control ArtWindow(Texture2D tex, string cardId, Vector2 pos, Vector2 size)
+    /// <summary>Freely framed art for standalone rectangular surfaces without a faction-frame mask.
+    /// These windows are much wider than the card face's aperture, so a centred cover-crop slices a 2:3
+    /// portrait down to a mid-body band and loses the subject's head. Instead the card face — the authored
+    /// view — is replayed: whatever part of the illustration the face frames is reproduced proportionally in
+    /// this window's aspect, so one adjustment in 卡面编辑台 lands on every surface at once.</summary>
+    public static Control ArtWindow(Texture2D tex, string cardId, Vector2 pos, Vector2 size, string? faction = null)
     {
         var host = new Control
         {
@@ -24,12 +28,50 @@ public static class CardView
             ClipContents = true,
         };
         var frame = CardArtFraming.Get(cardId);
-        float cover = Mathf.Max(size.X / tex.GetWidth(), size.Y / tex.GetHeight());
-        var drawSize = new Vector2(tex.GetWidth(), tex.GetHeight()) * cover * frame.Zoom;
-        var drawPos = (size - drawSize) / 2f
-            + new Vector2(size.X * 0.5f * frame.OffsetX, size.Y * 0.5f * frame.OffsetY);
+        var art = new Vector2(tex.GetWidth(), tex.GetHeight());
+
+        // Replay the face's crop of this illustration. The aperture's SIZE cancels out of everything below,
+        // so only its aspect matters — which is why a nominal card size is enough.
+        var aperture = FaceApertureSize(faction);
+        var faceDraw = art * Mathf.Max(aperture.X / art.X, aperture.Y / art.Y) * frame.Zoom;
+        var faceOrigin = (aperture - faceDraw) / 2f + aperture * 0.5f * new Vector2(frame.OffsetX, frame.OffsetY);
+
+        float cover = Mathf.Max(size.X / art.X, size.Y / art.Y);
+        var drawSize = art * cover * frame.Zoom;
+        var drawPos = new Vector2(
+            // Horizontal: keep the face's proportional position. Subjects are composed centred left-to-right,
+            // so a proportion carries the intent; an edge would shove wide art against one side.
+            -HorizontalFocus(faceOrigin.X, faceDraw.X, aperture.X) * (drawSize.X - size.X),
+            // Vertical: begin at the same row of the illustration the face begins at, so this window shows the
+            // TOP of what the card face shows. A figure's head sits at the top of its frame, and these windows
+            // are wide enough that a proportional placement would slide straight past it. Clamped so the extra
+            // crop is taken off the bottom instead of exposing empty space.
+            TopAlign(faceOrigin.Y / faceDraw.Y, drawSize.Y, size.Y));
         host.AddChild(BattleTheme.Art(tex, drawPos, drawSize, TextureRect.StretchModeEnum.Scale));
         return host;
+    }
+
+    /// <summary>Vertical draw origin that starts the art at the face's top edge (<paramref name="faceTop"/> is
+    /// the face's own origin as a fraction of its drawn height, ≤0 once the art overflows upward).</summary>
+    private static float TopAlign(float faceTop, float draw, float window) =>
+        draw <= window ? (window - draw) / 2f // art shorter than the window (zoom < 1): nothing to crop, centre it
+                       : Mathf.Clamp(faceTop * draw, window - draw, 0f);
+
+    /// <summary>Horizontal focus as a 0–1 point in image space (CSS object-position convention: 0 pins the left
+    /// edge, 1 the right). Without real overflow the face's offset slides the art into empty space rather than
+    /// choosing a crop, so there is no framing intent to carry — stay centred.</summary>
+    private static float HorizontalFocus(float origin, float draw, float window) =>
+        Mathf.Abs(draw - window) < 1f ? 0.5f : Mathf.Clamp(-origin / (draw - window), 0f, 1f);
+
+    /// <summary>The faction frame's illustration aperture, measured on the real painted frame (each faction
+    /// cuts its window differently: 匠会 0.97 wide-ish, 铁誓 0.80 tall-ish). Nominal card size, since only
+    /// the aspect is used; falls back to the average window when the caller doesn't know the faction.</summary>
+    private static Vector2 FaceApertureSize(string? faction)
+    {
+        var card = new Vector2(196f, 280f);
+        if (faction is null || FrameTexture(faction) is not { } frameTex)
+            return card * new Vector2(0.675f, 0.536f);
+        return CardFrameMask.Get(frameTex).Bounds.Size * card;
     }
 
     /// <summary>Full-face art masked by the central transparent aperture extracted from its real frame.</summary>
@@ -223,6 +265,17 @@ public static class CardView
     private const float PanelW = 560f;
     private const float PanelH = 812f;
 
+    /// <summary>Widest the illustration window may get. A 512×768 竖版原画 keeps ~50% of its height at this
+    /// aspect, against the ~37% the old fixed 1.82:1 slit left — which is where the faces were being lost.</summary>
+    private const float MinArtAspect = 1.32f;
+
+    /// <summary>Room kept at the panel foot for the faction lore line, so growing the art never eats it.</summary>
+    private const float LoreReserve = 84f;
+
+    /// <summary>How small the illustration may get when the host reserves the panel foot for its own opaque
+    /// content — a turret's 装配模块 list is worth more than its picture.</summary>
+    private const float HardMinArtH = 168f;
+
     /// <summary>Show a modal card-detail overlay over <paramref name="host"/>: art, name, rarity/faction/type,
     /// cost/atk/hp gems, rules text, per-keyword explanations, and faction lore. Click the dim backdrop or ✕ to close.</summary>
     public static void ShowDetailPopup(Control host, CardDefinition def)
@@ -265,18 +318,40 @@ public static class CardView
     /// <summary>Geometry-parameterized variant for hosts whose panel differs from the default popup
     /// (e.g. the battle scene's click-a-piece inspector). <paramref name="live"/> substitutes a unit's
     /// in-match stats for the printed ones; <paramref name="keywords"/> substitutes its effective (live)
-    /// keyword list for the card's printed one.</summary>
+    /// keyword list for the card's printed one. <paramref name="artH"/> is the illustration window's FLOOR —
+    /// see the sizing note below. <paramref name="reservedBottom"/> is height the host paints over the panel
+    /// foot itself (the turret loadout strip), which the art must not grow into.</summary>
     public static void FillDetail(Panel panel, CardDefinition def, Vector2 size, float pad, float artH, float statStep,
-        LiveUnitStats? live = null, IReadOnlyList<KeywordSpec>? keywords = null, string? artCardId = null)
+        LiveUnitStats? live = null, IReadOnlyList<KeywordSpec>? keywords = null, string? artCardId = null,
+        float reservedBottom = 0f)
     {
         bool isOrder = def.Type != CardType.Unit;
         float panelH = size.Y;
         float innerW = size.X - pad * 2;
         var faction = FactionColor(def.Faction);
 
+        // The illustration window used to be a fixed slit, leaving a dead band above the bottom-pinned lore on
+        // sparse cards while the art lost its subject's head. Measure everything below the art first and hand
+        // the art whatever is genuinely free, clamped to [floor, MinArtAspect]. Text, keyword lines and the
+        // host's reserved foot are all accounted for, so growing the picture can never hide rules information.
+        string bodyText = CardTextFormatting.GetBbcode(def.Id, BattleTheme.BodyText(def.Text));
+        bool hasText = !string.IsNullOrWhiteSpace(bodyText);
+        float textPlateH = hasText ? 26f + 26f * Mathf.Ceil(CardTextFormatting.PlainText(bodyText).Length / 26f) : 0f;
+        int kwLines = 0;
+        foreach (var k in keywords ?? def.Keywords)
+            if (KeywordName(k).Length > 0) kwLines++;
+        float belowArt = 14f + 46f + 16f + (hasText ? textPlateH + 12f : 0f) + kwLines * 50f;
+        // A reserved foot is opaque host content (the turret loadout strip) that would otherwise cover the
+        // keyword lines — there the picture yields down to HardMinArtH so the text keeps its room. Without a
+        // reserve the caller's artH is a hard floor, so ordinary cards can only ever gain.
+        float floorArt = reservedBottom > 0f ? Mathf.Min(artH, HardMinArtH) : artH;
+        artH = Mathf.Clamp(
+            panelH - pad - belowArt - Mathf.Max(reservedBottom, LoreReserve),
+            floorArt, Mathf.Max(artH, innerW / MinArtAspect));
+
         // Card art uses the same per-card framing as the face, adapted to this window's aspect.
         if (BattleTheme.Tex($"cards/{artCardId ?? def.Id}.png") is { } artTex)
-            panel.AddChild(ArtWindow(artTex, def.Id, new Vector2(pad, pad), new Vector2(innerW, artH)));
+            panel.AddChild(ArtWindow(artTex, def.Id, new Vector2(pad, pad), new Vector2(innerW, artH), def.Faction));
         else
         {
             panel.AddChild(new ColorRect { Color = faction.Darkened(0.2f), Position = new Vector2(pad, pad), Size = new Vector2(innerW, artH), MouseFilter = Control.MouseFilterEnum.Ignore });
@@ -325,11 +400,10 @@ public static class CardView
         }
         y += 46 + 16;
 
-        // Rules text.
-        if (!string.IsNullOrWhiteSpace(CardTextFormatting.GetBbcode(def.Id, BattleTheme.BodyText(def.Text))))
+        // Rules text (plate height already measured above, so the art sizing and the layout cannot drift apart).
+        if (hasText)
         {
-            string bodyText = CardTextFormatting.GetBbcode(def.Id, BattleTheme.BodyText(def.Text));
-            float plateH = 26f + 26f * Mathf.Ceil(CardTextFormatting.PlainText(bodyText).Length / 26f);
+            float plateH = textPlateH;
             var plate = new Panel { Position = new Vector2(pad, y), Size = new Vector2(innerW, plateH), MouseFilter = Control.MouseFilterEnum.Ignore };
             plate.AddThemeStyleboxOverride("panel", BattleTheme.Box(
                 new Color(0.07f, 0.06f, 0.05f, 0.7f), new Color(0.62f, 0.5f, 0.3f, 0.45f), 1, 8));

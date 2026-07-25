@@ -184,7 +184,9 @@ public partial class DeckScene : Control
 
     private Control CollectionTile(CardDefinition def)
     {
-        var size = new Vector2(210, 132);
+        // 202×78 (2.59:1) left only the middle ~26% of a 512×768 竖版原画 — heads were routinely cropped out.
+        // A taller tile brings the window to 1.53:1 (~44% visible); the grid still fits 5 columns and scrolls.
+        var size = new Vector2(210, 186);
         PointerIntent? inspect = null; // set by HookInspect on touch; guards the tap so long-press-to-inspect doesn't also add
         var tile = MakeButton("", Vector2.Zero, size, BattleTheme.PanelDark,
             () => { if (inspect?.ConsumeRecentGesture() == true) return; AddCard(def); });
@@ -192,15 +194,15 @@ public partial class DeckScene : Control
         inspect = HookInspect(tile, def);
 
         if (BattleTheme.Tex($"cards/{def.Id}.png") is { } art)
-            tile.AddChild(CardView.ArtWindow(art, def.Id, new Vector2(4, 4), new Vector2(size.X - 8, 78)));
+            tile.AddChild(CardView.ArtWindow(art, def.Id, new Vector2(4, 4), new Vector2(size.X - 8, 132), def.Faction));
 
         tile.AddChild(CostBadge(def.Cost, new Vector2(6, 6)));
         var name = BattleTheme.MakeOutlinedLabel(ShortName(def.Name), 17, BattleTheme.TextMain, HorizontalAlignment.Center);
-        name.Position = new Vector2(4, 84); name.Size = new Vector2(size.X - 8, 24); name.ClipContents = true;
+        name.Position = new Vector2(4, 138); name.Size = new Vector2(size.X - 8, 24); name.ClipContents = true;
         tile.AddChild(name);
         string stat = def.Type == CardType.Unit ? $"{def.Atk}/{def.Hp}" : "指令";
         var s = BattleTheme.MakeOutlinedLabel(stat, 16, BattleTheme.Accent, HorizontalAlignment.Center);
-        s.Position = new Vector2(4, 108); s.Size = new Vector2(size.X - 8, 22);
+        s.Position = new Vector2(4, 162); s.Size = new Vector2(size.X - 8, 22);
         tile.AddChild(s);
         return tile;
     }

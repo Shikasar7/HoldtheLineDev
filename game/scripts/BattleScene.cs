@@ -2063,20 +2063,27 @@ public partial class BattleScene : Control, IPlaybackHost, ITargetingHost
 			child.QueueFree();
 		_detailPanel.Visible = true;
 
+		// 掘世匠会 炮台 (docs/20 §2): the in-装 loadout is overlaid on the panel foot — for a turret this matters
+		// more than the generic printed lore. u.Modules is non-null only on a 工造炮台/影子炮台. The 历史池 (战地重构
+		// 取材) is shown only for the viewer's OWN real turret (server-authoritative, self-visible per PlayerView).
+		// Its height is resolved up front so the shared layout can keep the illustration out of it.
+		System.Collections.Generic.IReadOnlyList<string>? history = null;
+		float stripReserve = 0f;
+		if (u.Modules is not null)
+		{
+			history = !u.IsShadow && u.OwnerSeat == ViewSeat ? _host.GetView(ViewSeat).Self.InstalledHistory : null;
+			stripReserve = TurretStripHeight(history is { Count: > 0 }) + 24f; // 12px gap above + 12px foot margin
+		}
+
 		// Shared layout lives in CardView; this panel only differs in geometry and shows the unit's
 		// LIVE stats (生命 X/Y, red when damaged) and effective keywords instead of the printed ones.
 		CardView.FillDetail(_detailPanel, def, new Vector2(DetailW, DetailH), pad: 16f, artH: 264f, statStep: 158f,
 			live: new CardView.LiveUnitStats(u.Atk, u.CurrentHp, u.MaxHp), keywords: u.Keywords,
-			artCardId: u.Modules is null ? null : TurretVisuals.CardArtId(u.Modules));
+			artCardId: u.Modules is null ? null : TurretVisuals.CardArtId(u.Modules),
+			reservedBottom: stripReserve);
 
-		// 掘世匠会 炮台 (docs/20 §2): overlay the in-装 loadout at the bottom — for a turret this matters more than
-		// the generic printed lore. u.Modules is non-null only on a 工造炮台/影子炮台. The 历史池 (战地重构 取材) is
-		// shown only for the viewer's OWN real turret (server-authoritative, self-visible per PlayerView).
 		if (u.Modules is { } mods)
-		{
-			var history = !u.IsShadow && u.OwnerSeat == ViewSeat ? _host.GetView(ViewSeat).Self.InstalledHistory : null;
 			AddTurretModuleStrip(mods, u.IsShadow, history);
-		}
 
 		// Close button added last so it sits on top of the art and is always clickable.
 		var close = BattleTheme.MakeButton(new Vector2(DetailW - 46, 10), new Vector2(36, 36), BattleTheme.PanelDark, BattleTheme.TextDim, 1, 8);
@@ -2086,13 +2093,17 @@ public partial class BattleScene : Control, IPlaybackHost, ITargetingHost
 		_detailPanel.AddChild(close);
 	}
 
+	/// <summary>Height of the loadout strip below — needed before it is built, so the shared detail layout
+	/// can reserve its room instead of letting the illustration grow under it.</summary>
+	private static float TurretStripHeight(bool showHistory) => showHistory ? 214f : 170f;
+
 	/// <summary>掘世匠会 炮台装配面板 (docs/20 §2): a bottom strip on the unit inspector listing the turret's in-装
 	/// modules (grouped, 镜像 duplicates shown as ×N) and the 5-slot count. Empty turret shows 裸炮.</summary>
 	private void AddTurretModuleStrip(System.Collections.Generic.IReadOnlyList<string> mods, bool isShadow,
 		System.Collections.Generic.IReadOnlyList<string>? history)
 	{
 		bool showHistory = history is { Count: > 0 };
-		float stripH = showHistory ? 214f : 170f;
+		float stripH = TurretStripHeight(showHistory);
 		var strip = new Panel { Position = new Vector2(12, DetailH - stripH - 12), Size = new Vector2(DetailW - 24, stripH) };
 		strip.AddThemeStyleboxOverride("panel", BattleTheme.Box(new Color(0.06f, 0.05f, 0.05f, 0.94f), BattleTheme.Accent, 1, 8));
 		_detailPanel.AddChild(strip);

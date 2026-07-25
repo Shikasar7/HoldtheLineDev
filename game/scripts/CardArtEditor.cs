@@ -19,6 +19,7 @@ public partial class CardArtEditor : Control
     private Control _faceHost = null!;
     private Control _dragPane = null!;
     private Panel _aperture = null!;
+    private Control _shapeStrip = null!;
     private Vector2 _currentArtSize = FaceArtSize;
     private VBoxContainer _cardList = null!;
     private Label _cardHeading = null!, _values = null!, _status = null!;
@@ -130,6 +131,50 @@ public partial class CardArtEditor : Control
         var outline = new StyleBoxFlat { BgColor = Colors.Transparent, BorderColor = new Color(0.83f, 0.66f, 0.31f, 0.7f) };
         outline.SetBorderWidthAll(2); _aperture.AddThemeStyleboxOverride("panel", outline);
         stage.AddChild(_aperture);
+
+        var stripCaption = BattleTheme.MakeLabel("三处窗口的实际取景 · 调上方卡面即同步", 15, BattleTheme.TextDim);
+        stripCaption.Position = new Vector2(18, 756); stripCaption.Size = new Vector2(508, 22);
+        stage.AddChild(stripCaption);
+        _shapeStrip = new Control { Position = new Vector2(16, 780), Size = new Vector2(512, 126), MouseFilter = MouseFilterEnum.Ignore };
+        stage.AddChild(_shapeStrip);
+    }
+
+    /// <summary>The three windows that crop this illustration, side by side at a shared height: the faction
+    /// frame's aperture, the deck-editor grid tile and the detail panel. Each is built by the shipping
+    /// <see cref="CardView.ArtWindow"/>, so these ARE the in-game crops — the two wide ones follow the same
+    /// sliders as the face, and this is where you see them do it without leaving the editor.</summary>
+    private void RebuildShapeStrip(float apertureAspect)
+    {
+        foreach (Node child in _shapeStrip.GetChildren()) child.QueueFree();
+        if (BattleTheme.Tex($"cards/{_selected.Id}.png") is not { } tex) return;
+
+        const float cellH = 100f, gap = 20f;
+        var shapes = new (string Caption, float Aspect)[]
+        {
+            ("卡面开窗", apertureAspect),
+            ("卡组网格", 202f / 132f),
+            ("详情面板", 524f / 397f),
+        };
+        float total = gap * (shapes.Length - 1);
+        foreach (var s in shapes) total += cellH * s.Aspect;
+        float x = Mathf.Max(0f, (_shapeStrip.Size.X - total) / 2f);
+
+        foreach (var (caption, aspect) in shapes)
+        {
+            var size = new Vector2(cellH * aspect, cellH);
+            _shapeStrip.AddChild(CardView.ArtWindow(tex, _selected.Id, new Vector2(x, 0), size, _selected.Faction));
+
+            var border = new Panel { Position = new Vector2(x, 0), Size = size, MouseFilter = MouseFilterEnum.Ignore };
+            var edge = new StyleBoxFlat { BgColor = Colors.Transparent, BorderColor = new Color(0.83f, 0.66f, 0.31f, 0.45f) };
+            edge.SetBorderWidthAll(1);
+            border.AddThemeStyleboxOverride("panel", edge);
+            _shapeStrip.AddChild(border);
+
+            var label = BattleTheme.MakeLabel(caption, 14, BattleTheme.TextDim, HorizontalAlignment.Center);
+            label.Position = new Vector2(x, cellH + 4f); label.Size = new Vector2(size.X, 22);
+            _shapeStrip.AddChild(label);
+            x += size.X + gap;
+        }
     }
 
     private void BuildControls()
@@ -358,6 +403,7 @@ public partial class CardArtEditor : Control
             _aperture.Position = _faceHost.Position + localPos;
             _aperture.Size = _currentArtSize;
         }
+        RebuildShapeStrip(_currentArtSize.Y > 0f ? _currentArtSize.X / _currentArtSize.Y : FaceArtSize.X / FaceArtSize.Y);
         var f = CardArtFraming.Get(_selected.Id);
         _cardHeading.Text = $"{_selected.Name}  ·  {_selected.Id}";
         _values.Text = $"缩放 {f.Zoom:0.00}×     水平 {f.OffsetX:+0.00;-0.00;0.00}     垂直 {f.OffsetY:+0.00;-0.00;0.00}";
