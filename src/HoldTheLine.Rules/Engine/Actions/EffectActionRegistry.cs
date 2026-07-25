@@ -28,6 +28,8 @@ public static class EffectActionRegistry
             new SummonAction(),
             new MoveBonusAction(),
             new DestroyAction(),
+            // 0.14.0 反击号角: freeze the 驻防 +1/+1 already on your units into a permanent buff.
+            new LockGarrisonAction(),
             new RecallOrderAction(),
             // docs/21 §1.3: 蓄能 (executable) + the passive 引导者 markers read by the amplify/range pipeline
             // (deepen +伤害, discount -费, extend +施法距离 — 焰跃术士 用户改版).

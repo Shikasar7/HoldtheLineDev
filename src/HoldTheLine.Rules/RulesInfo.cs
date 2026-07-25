@@ -89,8 +89,14 @@ public static class RulesInfo
     /// grants 疾行 = 履带数 (was 1 + 履带数) so 裸炮 1 / 1 履带 2 / 镜像 3 are unchanged. Paired card tuning under the
     /// new rule: 荒野之魂 (wp_ghost_of_wilds) 疾行3→2, so it moves 3 格 (was 4) and no longer crosses the whole
     /// 4×5 board in one turn. The 疾N badge still shows N. DataHash changes (荒野之魂) — client + server must ship
-    /// this same data + version (Hello handshake gates on it).</remarks>
-    public const string Version = "0.13.0";
+    /// this same data + version (Hello handshake gates on it).
+    /// 0.14.0 (2026-07-25): 平衡补丁 #6 — 铁誓防线补强 (用户). New action lock_garrison: freezes the 驻防 +1/+1 a
+    /// unit is CURRENTLY enjoying into its panel (strips the 驻防 keyword + clears GarrisonApplied, stats untouched),
+    /// so the bonus survives leaving the home row and never double-applies on return; new additive event
+    /// garrison_locked. Two new 铁誓 orders — 以身为盾 (2费, 授予守护) and 反击号角 (2费, lock_garrison over all_allies);
+    /// pool 172 → 174, iron_vow 30 → 32. Card tuning: 墙垛弩卫 4费2/5 → 1费1/2 (射程2 不变), 门岗新丁 0/3 → 0/4,
+    /// 持盾卫 嘲讽 → 持盾. DataHash changes — client + server must ship this same data + version.</remarks>
+    public const string Version = "0.14.0";
 
     /// <summary>压力潮汐 start round, forwarded from the (internal) <see cref="Engine.TurnFlow"/> so the client
     /// HUD can show the tide countdown (docs/17) without hardcoding 8 and drifting from the rule. Read-only

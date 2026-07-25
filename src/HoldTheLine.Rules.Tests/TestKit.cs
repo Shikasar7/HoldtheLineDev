@@ -230,6 +230,13 @@ public static class TestKit
         Effects = [new EffectSpec { Trigger = "play", Action = "buff", Target = "all_allies", Atk = 1 }],
     };
 
+    /// <summary>反击号角 (0.14.0): freezes the 驻防 bonus your units are currently enjoying into their panels.</summary>
+    public static readonly CardDefinition LockGarrisonOrder = new()
+    {
+        Id = "t_counter_horn", Name = "Counter Horn", Type = CardType.Order, Cost = 2,
+        Effects = [new EffectSpec { Trigger = "play", Action = "lock_garrison", Target = "all_allies" }],
+    };
+
     // ---- second-batch fixtures (docs/10 §6): sear / self_moved / all_ally_emplacements ----
 
     /// <summary>Order: 3 灼蚀 damage to a unit — ignores 坚守, the 灼痕烙印 pattern.</summary>
@@ -473,7 +480,7 @@ public static class TestKit
         GuardianUnit, GuardianHolder, BlessUnit,
         Trampler, Sneak, Shielded, BattlecryBuffer, Bomber, Coin, ZapOrder, DrawOrder,
         Garrison, Leaper, PupToken, Medic, AllyBuffer, GrantGuardOrder, PounceOrder, GrantShieldOrder,
-        SpeedOrder, SummonOrder, ColumnOrder, HomeRowBuffOrder, OwnHalfSnipe, AllAlliesBuff,
+        SpeedOrder, SummonOrder, ColumnOrder, HomeRowBuffOrder, OwnHalfSnipe, AllAlliesBuff, LockGarrisonOrder,
         PackHunter, PackArcher,
         Turret, Barricade, Piercer, SacrificeOrder, RowBlastOrder, CrossBlastOrder,
         ColumnAllyBuffOrder, OnCastGrower, OnCastPinger, Recaller,

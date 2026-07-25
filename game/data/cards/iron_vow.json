@@ -21,8 +21,8 @@
 	"cost": 2,
 	"atk": 1,
 	"hp": 4,
-	"keywords": [{ "keyword": "taunt" }],
-	"text": "嘲讽。",
+	"keywords": [{ "keyword": "shield" }],
+	"text": "持盾。",
 	"art_prompt": "a stoic armored soldier bracing behind a tower shield etched with oaths"
   },
   {
@@ -179,6 +179,42 @@
 	"art_prompt": "a line of shields snapping together into an interlocked wall, sparks deflecting"
   },
   {
+	"id": "iv_guardian_vow",
+	"name": "以身为盾",
+	"faction": "iron_vow",
+	"type": "order",
+	"rarity": "rare",
+	"cost": 2,
+	"effects": [
+	  {
+		"trigger": "play",
+		"action": "grant_keyword",
+		"target": "target_unit_ally",
+		"keyword": "guardian",
+		"duration": "permanent"
+	  }
+	],
+	"text": "使一个友方随从获得守护。",
+	"art_prompt": "a sworn knight stepping in front of a wounded comrade, catching an incoming spear on their own shoulder-plate"
+  },
+  {
+	"id": "iv_counter_horn",
+	"name": "反击号角",
+	"faction": "iron_vow",
+	"type": "order",
+	"rarity": "rare",
+	"cost": 2,
+	"effects": [
+	  {
+		"trigger": "play",
+		"action": "lock_garrison",
+		"target": "all_allies"
+	  }
+	],
+	"text": "你场上正享受驻防加成的友方随从:该加成变为永久(离开底线也保留)。",
+	"art_prompt": "a horn-blower on the rampart sounding the counter-charge as garrison troops surge out from behind the wall"
+  },
+  {
 	"id": "iv_hold_the_line",
 	"name": "死守防线",
 	"faction": "iron_vow",
@@ -208,7 +244,7 @@
 	"rarity": "common",
 	"cost": 1,
 	"atk": 0,
-	"hp": 3,
+	"hp": 4,
 	"keywords": [
 	  {
 		"keyword": "taunt"
@@ -277,9 +313,9 @@
 	"faction": "iron_vow",
 	"type": "unit",
 	"rarity": "common",
-	"cost": 4,
-	"atk": 2,
-	"hp": 5,
+	"cost": 1,
+	"atk": 1,
+	"hp": 2,
 	"keywords": [
 	  {
 		"keyword": "range",

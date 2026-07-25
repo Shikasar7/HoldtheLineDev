@@ -844,6 +844,27 @@ internal sealed class ResolutionContext
         });
     }
 
+    /// <summary>
+    /// 反击号角 (0.14.0): freezes a unit's CURRENTLY APPLIED 驻防 bonus into its panel. The stats stay exactly
+    /// where they are; what changes is the bookkeeping — the 驻防 keyword is stripped and the applied flag cleared,
+    /// so <see cref="RecomputeGarrison"/> becomes a no-op for this unit and the +1/+1 no longer falls off when it
+    /// leaves the home row. Order matters: strip BEFORE clearing the flag would be equivalent, but never call
+    /// RecomputeGarrison in between — that path would take the stats back down (and could kill a unit living on
+    /// borrowed HP). A unit not currently enjoying the bonus is untouched: no keyword is stolen off a 驻防 unit
+    /// standing in the field.
+    /// </summary>
+    public void LockGarrison(UnitInstance unit)
+    {
+        if (!unit.GarrisonApplied)
+            return;
+
+        StripKeyword(unit, Keyword.Garrison);
+        // 炮台's derived panel rewrites unit.Keywords on every recompute, so the External layer has to lose it too.
+        unit.Turret?.ExternalKeywords.RemoveAll(s => s.Keyword == Keyword.Garrison);
+        unit.GarrisonApplied = false;
+        Emit(new GarrisonLockedEvent { UnitEntityId = unit.EntityId });
+    }
+
     /// <summary>Drops all end-of-turn temporary grants (called when the active player ends their turn).</summary>
     public void ExpireEndOfTurnGrants()
     {

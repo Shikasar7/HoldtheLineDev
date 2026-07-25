@@ -26,6 +26,8 @@ namespace HoldTheLine.Rules.Events;
 [JsonDerivedType(typeof(UnitBuffedEvent), "unit_buffed")]
 [JsonDerivedType(typeof(UnitKeywordGrantedEvent), "unit_keyword_granted")]
 [JsonDerivedType(typeof(UnitMoveBonusEvent), "unit_move_bonus")]
+// 反击号角 (0.14.0): additive event type — protocol bumps with the RulesVersion this ships in.
+[JsonDerivedType(typeof(GarrisonLockedEvent), "garrison_locked")]
 [JsonDerivedType(typeof(LeaderDamagedEvent), "leader_damaged")]
 [JsonDerivedType(typeof(PressureTideEvent), "pressure_tide")]
 [JsonDerivedType(typeof(LeaderSkillUsedEvent), "leader_skill_used")]
@@ -178,6 +180,14 @@ public sealed record UnitKeywordGrantedEvent : GameEvent
     public int Value { get; init; }
     /// <summary>permanent | end_of_turn | your_next_turn.</summary>
     public required string Duration { get; init; }
+}
+
+/// <summary>反击号角 (0.14.0): the unit's 驻防 +1/+1 was frozen into its printed panel — it keeps the stats
+/// off the home row and loses the 驻防 keyword. Stats do not change here (the bonus is already applied),
+/// so this is a presentation/log beat only.</summary>
+public sealed record GarrisonLockedEvent : GameEvent
+{
+    public required int UnitEntityId { get; init; }
 }
 
 public sealed record UnitMoveBonusEvent : GameEvent

@@ -19,8 +19,9 @@ public class ContentTests
     {
         var db = Cards();
         // Second batch (docs/10): 163. 补丁#4 (docs/21): 170. docs/20 匠会重做: undervault 31 → 33 (+2), pool → 172.
-        Assert.Equal(172, db.All.Count);
-        Assert.Equal(30, db.All.Count(c => c.Faction == "iron_vow"));
+        // 平衡补丁#6 (0.14.0): iron_vow 30 → 32 (以身为盾 / 反击号角), pool → 174.
+        Assert.Equal(174, db.All.Count);
+        Assert.Equal(32, db.All.Count(c => c.Faction == "iron_vow"));
         Assert.Equal(30, db.All.Count(c => c.Faction == "wildpack"));
         Assert.Equal(36, db.All.Count(c => c.Faction == "duskweaver"));  // 30 + chick token + 5 (docs/21)
         // docs/20 掘世匠会 重做: 14 模块 + 12 单位 + 5 指令 + 2 衍生物 (工造炮台 + 哨戒炮) = 33.

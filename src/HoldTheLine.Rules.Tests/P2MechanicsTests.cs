@@ -62,6 +62,77 @@ public class GarrisonTests
         Assert.Equal(3, moved.CurrentHp);
     }
 
+    // ---- 反击号角 / lock_garrison (0.14.0) ----
+
+    [Fact]
+    public void Counter_horn_freezes_the_bonus_so_the_unit_keeps_it_off_the_home_row()
+    {
+        var state = TestKit.NewGame();
+        var gar = TestKit.Place(state, 0, "t_garrison", new Cell(2, 0)); // 3/3 garrisoned
+        state.Player(0).Mana = 5;
+        int horn = TestKit.GiveCard(state, 0, "t_counter_horn");
+
+        var played = TestKit.NewResolver().Execute(state, new PlayCardCommand { Seat = 0, CardEntityId = horn });
+        Assert.True(played.Success, played.Error?.Message);
+        var locked = played.State!.FindUnit(gar.EntityId)!;
+        Assert.Equal(3, locked.Atk);
+        Assert.Equal(3, locked.CurrentHp);            // stats do not move — only the bookkeeping
+        Assert.False(locked.GarrisonApplied);
+        Assert.False(locked.HasKeyword(Keyword.Garrison));
+        Assert.Contains(played.Events, e => e is GarrisonLockedEvent);
+
+        var moved = TestKit.NewResolver().Execute(played.State!, new MoveUnitCommand
+        { Seat = 0, UnitEntityId = gar.EntityId, To = new Cell(2, 1) });
+
+        Assert.True(moved.Success, moved.Error?.Message);
+        var marched = moved.State!.FindUnit(gar.EntityId)!;
+        Assert.Equal(3, marched.Atk);                 // the +1/+1 marches out with it
+        Assert.Equal(3, marched.CurrentHp);
+    }
+
+    [Fact]
+    public void A_locked_unit_does_not_collect_the_bonus_twice_by_coming_home()
+    {
+        var state = TestKit.NewGame();
+        var gar = TestKit.Place(state, 0, "t_garrison", new Cell(2, 0));
+        state.Player(0).Mana = 5;
+        int horn = TestKit.GiveCard(state, 0, "t_counter_horn");
+
+        var s = TestKit.NewResolver().Execute(state, new PlayCardCommand { Seat = 0, CardEntityId = horn }).State!;
+        s = TestKit.NewResolver().Execute(s, new MoveUnitCommand
+        { Seat = 0, UnitEntityId = gar.EntityId, To = new Cell(2, 1) }).State!;
+        s.FindUnit(gar.EntityId)!.MovementUsed = 0; // walk back within the same turn
+        s = TestKit.NewResolver().Execute(s, new MoveUnitCommand
+        { Seat = 0, UnitEntityId = gar.EntityId, To = new Cell(2, 0) }).State!;
+
+        var home = s.FindUnit(gar.EntityId)!;
+        Assert.Equal(new Cell(2, 0), home.Cell); // the walk-back really happened (else the assert below is vacuous)
+        Assert.Equal(3, home.Atk);
+        Assert.Equal(3, home.CurrentHp);
+        Assert.False(home.GarrisonApplied);
+    }
+
+    [Fact]
+    public void Counter_horn_leaves_a_unit_that_is_not_currently_garrisoned_alone()
+    {
+        var state = TestKit.NewGame();
+        var gar = TestKit.Place(state, 0, "t_garrison", new Cell(1, 1)); // off the home row → no bonus
+        state.Player(0).Mana = 5;
+        int horn = TestKit.GiveCard(state, 0, "t_counter_horn");
+
+        var played = TestKit.NewResolver().Execute(state, new PlayCardCommand { Seat = 0, CardEntityId = horn });
+
+        Assert.True(played.Success, played.Error?.Message);
+        var untouched = played.State!.FindUnit(gar.EntityId)!;
+        Assert.True(untouched.HasKeyword(Keyword.Garrison)); // keyword is not stolen off a unit in the field
+        Assert.DoesNotContain(played.Events, e => e is GarrisonLockedEvent);
+
+        // …and it still earns the bonus the normal way when it falls back to the line.
+        var back = TestKit.NewResolver().Execute(played.State!, new MoveUnitCommand
+        { Seat = 0, UnitEntityId = gar.EntityId, To = new Cell(1, 0) });
+        Assert.Equal(3, back.State!.FindUnit(gar.EntityId)!.CurrentHp);
+    }
+
     [Fact]
     public void A_damaged_garrison_unit_can_die_by_leaving_the_line()
     {
