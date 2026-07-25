@@ -18,7 +18,7 @@
     & "C:\Users\Cicala\AndroidTooling\jdk17\jdk-17.0.20+8\bin\keytool.exe" -genkeypair -v `
         -keyalg RSA -keysize 2048 -validity 10000 `
         -keystore "$env:USERPROFILE\AndroidTooling\HoldTheLine-release.jks" -alias holdtheline
-    [Environment]::SetEnvironmentVariable('HTL_KEYSTORE_PASS', '口令本身', 'User')   # 设完重开终端
+    [Environment]::SetEnvironmentVariable('HTL_KEYSTORE_PASS', '口令本身', 'User')
   两个坑:
     · keytool 最后问"输入 <holdtheline> 的密钥口令(相同则按回车)"时**必须直接回车** —— Godot 的
       Android 导出只有一个密码字段,密钥口令与密钥库口令不同就签不出来,且报错不说明原因。
@@ -87,7 +87,7 @@ if ($UseDebugKey) {
   & "C:\Users\Cicala\AndroidTooling\jdk17\jdk-17.0.20+8\bin\keytool.exe" -genkeypair -v ``
       -keyalg RSA -keysize 2048 -validity 10000 -keystore "$Keystore" -alias $KeystoreAlias
       (最后问"密钥口令(相同则按回车)"时必须直接回车 —— Godot 只有一个密码字段)
-  [Environment]::SetEnvironmentVariable('HTL_KEYSTORE_PASS', '口令本身', 'User')   # 设完重开终端
+  [Environment]::SetEnvironmentVariable('HTL_KEYSTORE_PASS', '口令本身', 'User')
 校验环境变量与密钥对得上(不回显口令):
   `$v=[Environment]::GetEnvironmentVariable('HTL_KEYSTORE_PASS','User'); ``
   & "C:\Users\Cicala\AndroidTooling\jdk17\jdk-17.0.20+8\bin\keytool.exe" -list -keystore "$Keystore" -storepass `$v
@@ -99,7 +99,13 @@ if ($UseDebugKey) {
         Write-Host $howto -ForegroundColor Yellow
         throw "找不到正式 keystore:$Keystore(准备步骤见上)"
     }
+    # 进程的环境变量是启动那一刻的快照:SetEnvironmentVariable(...,'User') 写的是注册表,已经开着的
+    # 终端(以及从它派生的这个进程)一律读不到,非得重开一个才行 —— 这个坑必踩一次。所以进程级取不到
+    # 时直接回落去读用户级注册表,省掉"设完要重开终端"。非 Windows 上该调用返回 null,不影响。
     $KeyPass = $env:HTL_KEYSTORE_PASS
+    if ([string]::IsNullOrEmpty($KeyPass)) {
+        $KeyPass = [Environment]::GetEnvironmentVariable('HTL_KEYSTORE_PASS', 'User')
+    }
     if ([string]::IsNullOrEmpty($KeyPass)) {
         Write-Host $howto -ForegroundColor Yellow
         throw "环境变量 HTL_KEYSTORE_PASS 未设 —— 口令不写进脚本/仓库(准备步骤见上)"
