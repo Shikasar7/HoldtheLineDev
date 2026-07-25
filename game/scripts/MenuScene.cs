@@ -85,7 +85,7 @@ public partial class MenuScene : Control
         else
         {
             if (!Session.Connected)
-                _ = Session.ConnectAsync(GameConfig.ServerUrl, GameConfig.Nickname);
+                _ = AutoConnectAsync(); // silent, except for the bad_identity re-login gate
             if (!Prefs.WelcomeSeen)
                 ShowWelcomePopup(); // docs/23: first-launch welcome (existing installs see it once too)
         }
@@ -132,7 +132,7 @@ public partial class MenuScene : Control
         // aborted socket. No-op when already connected; guarded on BoundUsername so we don't dial before login.
         // (Desktop also delivers this on window focus-in; the reconnect is harmless there.)
         if (what == MainLoop.NotificationApplicationResumed && Session.BoundUsername is not null && !Session.Connected)
-            _ = EnsureConnectedAsync();
+            _ = AutoConnectAsync(); // same silent-except-bad_identity policy as the startup dial
     }
 
     // ---------- auto-update surface (docs/15 通道 A) ----------
@@ -307,7 +307,9 @@ public partial class MenuScene : Control
     /// user edited the address since the live socket was opened (docs/16) — otherwise a stale connection to the
     /// old host would silently absorb the new URL. Returns null on success, else the human-readable error
     /// (LastConnectErrorCode carries the update code, if any).</summary>
-    private static async System.Threading.Tasks.Task<string?> EnsureConnectedAsync()
+    /// <param name="forLogin">Set by the login form so a bad_identity rejection retries identity-less — the
+    /// escape hatch for a device another device's login kicked (see Session.ConnectForLoginAsync).</param>
+    private static async System.Threading.Tasks.Task<string?> EnsureConnectedAsync(bool forLogin = false)
     {
         // Address edited since the live socket opened (docs/16) → drop the old host first so the new URL isn't
         // silently absorbed by a stale connection to the old one.
@@ -315,7 +317,7 @@ public partial class MenuScene : Control
             await Session.DisconnectAsync();
         // Session.EnsureConnectedAsync handles the rest: no-op when already live, join an in-flight dial, and
         // (crucially) dispose a dead/failed husk before dialing fresh so a broken lobby socket doesn't leak.
-        return await Session.EnsureConnectedAsync(GameConfig.ServerUrl, GameConfig.Nickname);
+        return await Session.EnsureConnectedAsync(GameConfig.ServerUrl, GameConfig.Nickname, forLogin);
     }
 
     /// <summary>If the last connect was rejected with an update-required code, raise the forced-update modal
@@ -324,6 +326,32 @@ public partial class MenuScene : Control
     {
         if (IsUpdateCode(Session.LastConnectErrorCode)) { ShowForcedUpdate(Session.LastConnectErrorCode); return true; }
         return false;
+    }
+
+    /// <summary>The "another device kicked you" gate. Login rotates the account secret (single active device —
+    /// AccountStore.Login), so the device that lost the race fails its NEXT handshake with bad_identity and can
+    /// only recover by logging in again. Two things make that recovery real: this panel, which explains the
+    /// otherwise-cryptic English server text and routes straight to the login form, and the login form's
+    /// identity-less connect fallback (Session.ConnectForLoginAsync) — without which the handshake would be
+    /// refused before the login frame could even be sent.</summary>
+    private void ShowKickedByOtherDevice()
+    {
+        var win = WindowPanelTitled(new Vector2(760, 470), "需 重 新 登 录");
+        WinLabel(win, "这个账号已在另一台设备上登录,", WinContentTop, 22, BattleTheme.InkMain);
+        WinLabel(win, "本机的登录凭据已失效(同一账号只能有一台设备在线)。", WinContentTop + 38, 22, BattleTheme.InkMain);
+        WinLabel(win, "重新登录即可把账号切回本机。", WinContentTop + 84, 20, BattleTheme.InkDim);
+        win.AddChild(BtnPrimary("重 新 登 录", new Vector2(120, 300), new Vector2(520, 64), () => ShowAuthForm(isRegister: false)));
+        win.AddChild(Btn("返回菜单(仅单机)", new Vector2(120, 380), new Vector2(520, 52), CloseOverlay));
+    }
+
+    /// <summary>Background (re)connect for an already-entered player — startup, and Android resume-from-background.
+    /// Ordinary failures stay silent: the menu's vs-AI / 同屏 work offline and 联机对战 offers a retry. The one
+    /// failure that must speak up is bad_identity — nothing fixes itself, so raise the re-login gate at once.</summary>
+    private async System.Threading.Tasks.Task AutoConnectAsync()
+    {
+        await EnsureConnectedAsync();
+        if (Session.LastConnectErrorCode == "bad_identity" && IsInstanceValid(this))
+            ShowKickedByOtherDevice();
     }
 
     /// <summary>Login (isRegister=false) or register-a-new-account (isRegister=true) — one form; they differ
@@ -369,7 +397,9 @@ public partial class MenuScene : Control
             // 方案 A (docs/16 §2): a brand-new account = a brand-new guest identity. Clear only when NOT already
             // connected — the login page appears solely when there is nothing to protect.
             if (isRegister && !Session.Connected) Identity.Clear();
-            var connErr = await EnsureConnectedAsync();
+            // Login dials with the bad_identity fallback: this device's stored secret may have been rotated away
+            // by another device's login, and the whole point of this form is to fetch a fresh one.
+            var connErr = await EnsureConnectedAsync(forLogin: !isRegister);
             if (connErr != null) { Enable(); if (!TryForcedUpdate()) Set($"连接失败:{connErr}", BattleTheme.DangerColor); return; }
             if (!SecureChannelOk()) { Enable(); Set("密码功能需要加密连接(wss)", BattleTheme.DangerColor); return; }
             var err = isRegister ? await Session.RegisterAsync(u, pass.Text) : await Session.LoginAsync(u, pass.Text);
@@ -384,8 +414,14 @@ public partial class MenuScene : Control
     {
         // A guest reuses (or, on a fresh install, mints) the local identity via ConnectAsync. Offline is fine
         // — the menu's vs-AI / hotseat work regardless; the credential just persists for next launch.
+        // An abandoned escape-hatch socket must go first: EnsureConnectedAsync would see it as "already
+        // connected" and enter the menu on a throwaway identity instead of this device's real one.
+        if (Session.IsAnonymous) await Session.DisconnectAsync();
         var err = await EnsureConnectedAsync();
         if (err != null && TryForcedUpdate()) return;
+        // A kicked account device reaching the login page can also tap 游客进入; going offline silently would
+        // hide the only thing that fixes it. (A real guest identity is never rotated, so it never lands here.)
+        if (err != null && Session.LastConnectErrorCode == "bad_identity") { ShowKickedByOtherDevice(); return; }
         FinishEntry(offerName: true);
     }
 
@@ -505,7 +541,10 @@ public partial class MenuScene : Control
     /// <summary>Entry from the main menu: straight to the lobby if the session is up, else connect first.</summary>
     private void ShowOnlinePanel()
     {
-        if (Session.Connected) ShowLobby();
+        // An identity-less socket (the bad_identity escape hatch, abandoned before its login) is live but belongs
+        // to nobody — showing it a lobby would let a phantom identity queue ranked. Send it back to the gate.
+        if (Session.IsAnonymous) ShowKickedByOtherDevice();
+        else if (Session.Connected) ShowLobby();
         else ShowConnect();
     }
 
@@ -562,6 +601,7 @@ public partial class MenuScene : Control
             var err = await Session.ConnectAsync(GameConfig.ServerUrl, GameConfig.Nickname);
             if (err is null) ShowLobby();
             else if (IsUpdateCode(Session.LastConnectErrorCode)) ShowForcedUpdate(Session.LastConnectErrorCode);
+            else if (Session.LastConnectErrorCode == "bad_identity") ShowKickedByOtherDevice();
             else { status.Text = $"连接失败:{err}"; status.AddThemeColorOverride("font_color", BattleTheme.DangerColor); }
         }));
         p.AddChild(Btn("返回", new Vector2(Cx + 310, 624), new Vector2(290, 76), CloseOverlay));
@@ -950,6 +990,7 @@ public partial class MenuScene : Control
         "not_identified" => "当前为临时身份,无法注册",
         "already_bound" => "该身份已绑定过用户名",
         "invalid_name" => "昵称需 1-20 个字符", // docs/16 set_name
+        "bad_identity" => "本机凭据已失效(账号已在别处登录),请重新登录",
         _ => codeOrText,
     };
 

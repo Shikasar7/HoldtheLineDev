@@ -46,6 +46,13 @@ public static class Session
     /// docs/15 forced-update prompt for the "you must update" codes. Set on every ConnectAsync attempt.</summary>
     public static string? LastConnectErrorCode { get; private set; }
 
+    /// <summary>True while the live connection was opened WITHOUT the local identity (an identity-less hello —
+    /// the server minted a throwaway guest id, no db row). Only <see cref="ConnectForLoginAsync"/> opens one, as
+    /// the escape hatch for a device whose stored secret was rotated away by another device's login; it exists
+    /// solely to carry the follow-up <c>login</c> frame. Cleared the moment that login lands a real identity.
+    /// Callers must not treat an anonymous session as a playable one — its decks/rating belong to nobody.</summary>
+    public static bool IsAnonymous { get; private set; }
+
     private static Hello? _hello;
 
     // Lobby-level server pushes (WS thread — subscribers marshal to the main thread).
@@ -65,7 +72,7 @@ public static class Session
     /// <summary>Connect + hello (identity + data hash). A no-op if already connected; if a connect is already
     /// in flight, awaits THAT one instead of starting a rival. Returns null on success, or a human-readable
     /// error. Arms the first match host so match_started is captured.</summary>
-    public static Task<string?> ConnectAsync(string serverUrl, string nickname)
+    public static Task<string?> ConnectAsync(string serverUrl, string nickname, bool anonymous = false)
     {
         if (Connected)
             return Task.FromResult<string?>(null);
@@ -73,10 +80,26 @@ public static class Session
         // must not be cached and block every future connect, so only a not-yet-completed one short-circuits.
         if (_connecting is { IsCompleted: false } inflight)
             return inflight;
-        return _connecting = RunConnectAsync(serverUrl, nickname);
+        return _connecting = RunConnectAsync(serverUrl, nickname, anonymous);
     }
 
-    private static async Task<string?> RunConnectAsync(string serverUrl, string nickname)
+    /// <summary>Connect for the sake of sending <c>login</c>: a normal identity hello first, and — when the
+    /// server rejects it with <c>bad_identity</c> — one identity-less retry. That rejection means this device's
+    /// stored secret was rotated away by another device's login (AccountStore.Login: single active device); since
+    /// login is only reachable OVER a connection, without this retry the kicked device is locked out for good
+    /// (can't connect ⇒ can't log in ⇒ can't get a fresh secret). The local identity.json is left untouched, so a
+    /// failed/abandoned login costs nothing; a successful one overwrites it via <see cref="Identity.Replace"/>.
+    /// Returns null on success, else a human-readable error.</summary>
+    public static async Task<string?> ConnectForLoginAsync(string serverUrl, string nickname)
+    {
+        var err = await ConnectAsync(serverUrl, nickname);
+        if (err is null || LastConnectErrorCode != "bad_identity")
+            return err;
+        // RunConnectAsync already disposed the rejected client and cleared _connecting, so this dials clean.
+        return await ConnectAsync(serverUrl, nickname, anonymous: true);
+    }
+
+    private static async Task<string?> RunConnectAsync(string serverUrl, string nickname, bool anonymous = false)
     {
         try
         {
@@ -88,7 +111,11 @@ public static class Session
             client.MessageReceived += OnMessage;
             client.StateChanged += s => StateChanged?.Invoke(s);
 
-            var (guestId, secret) = Identity.Get();
+            // Anonymous: send no identity at all (the server mints a throwaway guest id and writes no db row) and
+            // don't even touch identity.json — Get() would MINT one, and this path exists precisely because the
+            // stored one is unusable. A following login replaces it with the account's rotated pair.
+            var (guestId, secret) = anonymous ? ("", "") : Identity.Get();
+            IsAnonymous = anonymous;
             _hello = new Hello
             {
                 GuestId = guestId,
@@ -123,6 +150,7 @@ public static class Session
                 Remote = null;
                 _hello = null;
                 ConnectedUrl = null;
+                IsAnonymous = false; // a failed anonymous dial must not leave the flag armed
                 try { await client.DisposeAsync(); } catch { /* best-effort cleanup of the failed dial */ }
                 return ex.Message;
             }
@@ -169,7 +197,10 @@ public static class Session
     /// socket and surface the raw ".NET WebSocket is in an invalid state ('Aborted')". This joins an in-flight
     /// dial, otherwise disposes any dead husk and dials fresh. Returns null when connected, else a
     /// human-readable reason.</summary>
-    public static async Task<string?> EnsureConnectedAsync(string serverUrl, string nickname)
+    /// <param name="forLogin">Dial via <see cref="ConnectForLoginAsync"/> so a <c>bad_identity</c> rejection
+    /// falls back to an identity-less hello. Only the login form passes true: every other caller wants the
+    /// rejection surfaced, not papered over with a throwaway identity.</param>
+    public static async Task<string?> EnsureConnectedAsync(string serverUrl, string nickname, bool forLogin = false)
     {
         if (Connected)
             return null;
@@ -184,7 +215,9 @@ public static class Session
         // deterministic dial beats waiting out the background reconnect's backoff.
         if (Client is not null)
             await DisconnectAsync();
-        return await ConnectAsync(serverUrl, nickname);
+        return forLogin
+            ? await ConnectForLoginAsync(serverUrl, nickname)
+            : await ConnectAsync(serverUrl, nickname);
     }
 
     public static Task SendAsync(ClientMessage message) => Client?.SendAsync(message) ?? Task.CompletedTask;
@@ -297,6 +330,7 @@ public static class Session
         Profile = null;
         BoundUsername = null;
         ConnectedUrl = null;
+        IsAnonymous = false;
         _hello = null;
         if (c is not null)
             await c.DisposeAsync();
@@ -340,6 +374,9 @@ public static class Session
                 {
                     Identity.Replace(gid, sec);
                     if (_hello is { } h) _hello = h with { GuestId = gid, Secret = sec };
+                    // This connection now carries a real, verified identity — including the bad_identity escape
+                    // hatch's anonymous socket, which is exactly how a kicked device heals itself.
+                    IsAnonymous = false;
                 }
                 BoundUsername = ok.Username;
                 // register binds this identity's decks to an account; login swaps in a different account's

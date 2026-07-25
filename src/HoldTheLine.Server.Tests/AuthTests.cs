@@ -192,6 +192,40 @@ public class AuthTests
         }
     }
 
+    // 5c — the way back from test 2's dead end. A kicked device's stored secret is stale, so its hello is refused
+    //      (bad_identity) and — since login only travels over an established connection — it could never reach the
+    //      login that would hand it a fresh secret. The escape hatch is an identity-less hello exactly as the
+    //      client's Session.ConnectForLoginAsync sends it (empty guest id AND empty secret, so nothing is minted
+    //      locally): it must handshake, carry a login, and hand back a secret that then verifies normally.
+    [Fact]
+    public async Task An_identity_less_connection_can_login_and_recover_a_rotated_secret()
+    {
+        await using var server = await RunningServer.StartAsync();
+        Assert.Equal("ok", await RegisterCode(server, "gA", "secretA", "alice", "password123"));
+
+        // Another device logs in → gA's secret rotates → gA's own hello is now refused (the lockout).
+        Assert.Equal("ok", await LoginCode(server, "alice", "password123"));
+        Assert.Equal("bad_identity", Assert.IsType<ErrorMsg>(await FirstReply(server.Ws, Hello("gA", "secretA", "Alice"))).Code);
+
+        string recoveredSecret;
+        await using (var kicked = new GameServerClient(new WebSocketTransport()))
+        {
+            var authed = Tcs<AuthOk>();
+            kicked.MessageReceived += m => { if (m is AuthOk ok) authed.TrySetResult(ok); };
+            await kicked.ConnectAsync(server.Ws, Hello("", null, "玩家")); // must NOT be rejected
+            await kicked.SendAsync(new Login { Username = "alice", Password = "password123" });
+
+            var ok = await authed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal("gA", ok.GuestId);                          // back on the account
+            Assert.False(string.IsNullOrEmpty(ok.Secret));           // with a usable secret
+            recoveredSecret = ok.Secret!;
+        }
+
+        // The recovered pair is what the client persists — a plain reconnect with it now restores the account.
+        var reply = await FirstReply(server.Ws, Hello("gA", recoveredSecret, "Alice"));
+        Assert.IsType<HelloOk>(reply);
+    }
+
     // 6 — registering a second username on an already-bound identity is already_bound.
     [Fact]
     public async Task Registering_twice_on_one_identity_is_already_bound()
