@@ -1,5 +1,6 @@
 using System.Text.Json;
 using HoldTheLine.Net;
+using HoldTheLine.Net.Protocol;
 using HoldTheLine.Rules;
 using HoldTheLine.Rules.Ai;
 using HoldTheLine.Rules.Cards;
@@ -23,6 +24,9 @@ using HoldTheLine.Rules.State;
 //   --parallel N             concurrent games (default 1; results are identical regardless of N)
 //   --mulligan               run the 起手重抽 phase
 //   --dump                   print per-game winner/turns (for verifying parallel == serial)
+//   --print-hash             print this build's handshake identity as one line of JSON and exit — no games.
+//                            (docs/24 R2: scripts/preflight.ps1 diffs it against the live server's /healthz.
+//                            Lives here because Sim already loads game/data and references DataHash.)
 // deckA / deckB / each --decks item resolves, in order, to: a builtin deck id, a HTL1- deck code,
 // or a json file path {"leader":"...","cards":[...]}. Codes/files are validated; bad input exits non-zero.
 
@@ -48,6 +52,7 @@ string? TakeValue(string flag)
 
 bool mulligan = TakeBool("--mulligan");
 bool dump = TakeBool("--dump");
+bool printHash = TakeBool("--print-hash");
 string? aiBoth = TakeValue("--ai");
 string? ai0Opt = TakeValue("--ai0");
 string? ai1Opt = TakeValue("--ai1");
@@ -78,6 +83,24 @@ var db = CardDatabase.LoadFromDirectory(Path.Combine(root, "cards"));
 var leaders = LeaderDatabase.LoadFromDirectory(Path.Combine(root, "leaders"));
 var decks = DeckLibrary.LoadFromDirectory(Path.Combine(root, "decks"));
 string dataHash = DataHash.Compute(db, leaders, decks);
+
+// docs/24 R2: the handshake identity of the working tree, in the SAME shape /healthz reports it, so
+// preflight can compare field-for-field. Printed as a single line starting with '{' — callers should take
+// the first such line and ignore any MSBuild/restore chatter above it.
+if (printHash)
+{
+    Console.WriteLine(JsonSerializer.Serialize(new
+    {
+        protocolVersion = ProtocolConstants.ProtocolVersion,
+        rulesVersion = RulesInfo.Version,
+        dataHash,
+        cards = db.All.Count,
+        leaders = leaders.All.Count,
+        decks = decks.Count,
+    }));
+    return;
+}
+
 var deckFileJson = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
 if (roundRobin)

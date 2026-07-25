@@ -69,5 +69,24 @@ public class LadderQueryTests
         Assert.True(root.TryGetProperty("rankedToday", out _));
     }
 
+    /// <summary>docs/24 R1: /healthz also reports the three values the hello handshake gates on, so a release
+    /// can diff the live server against the local build (scripts/preflight.ps1) instead of guessing.</summary>
+    [Fact]
+    public async Task Healthz_reports_the_handshake_identity()
+    {
+        await using var server = await RunningServer.StartAsync();
+        var healthUri = new Uri(server.Ws.ToString().Replace("ws://", "http://").Replace("/ws", "/healthz"));
+
+        using var http = new HttpClient();
+        var json = await http.GetStringAsync(healthUri).WaitAsync(TimeSpan.FromSeconds(5));
+
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+        Assert.Equal(ProtocolConstants.ProtocolVersion, root.GetProperty("protocolVersion").GetInt32());
+        Assert.Equal(RulesInfo.Version, root.GetProperty("rulesVersion").GetString());
+        // Exactly the hash the handshake compares hello.DataHash against — not a recomputed lookalike.
+        Assert.Equal(server.Service<GameContent>().DataHash, root.GetProperty("dataHash").GetString());
+    }
+
     private static TaskCompletionSource<T> Tcs<T>() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 }

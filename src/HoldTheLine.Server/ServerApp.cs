@@ -1,4 +1,6 @@
 using System.Net;
+using HoldTheLine.Net.Protocol;
+using HoldTheLine.Rules;
 using HoldTheLine.Server.Data;
 using HoldTheLine.Server.Rooms;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -48,8 +50,13 @@ public static class ServerApp
         });
         app.UseWebSockets();
 
-        // /healthz is JSON (M3 B4): a glance tells you the Beta's live load.
-        app.MapGet("/healthz", (RoomManager rooms, QueueManager queue, LadderStore ladder, ServerStats stats) =>
+        // /healthz is JSON (M3 B4): a glance tells you the Beta's live load — plus, since docs/24 R1, the
+        // three *identity* values the hello handshake gates on (ClientConnection §①②). Without them the only
+        // way to answer "what is the live server actually running?" was to ssh in and guess, which is how a
+        // client-only release once shipped against a stale server and locked every updated player out
+        // (docs/24 §0). scripts/preflight.ps1 diffs these against the local build before a publish.
+        // Not a leak: every one of them is sent in the clear to any client that opens a socket.
+        app.MapGet("/healthz", (RoomManager rooms, QueueManager queue, LadderStore ladder, ServerStats stats, GameContent content) =>
         {
             long since = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).ToUnixTimeSeconds();
             return Results.Json(new
@@ -59,6 +66,9 @@ public static class ServerApp
                 matches = rooms.ActiveMatchCount,
                 queue = queue.Count,
                 rankedToday = ladder.MatchesSince(since),
+                protocolVersion = ProtocolConstants.ProtocolVersion,
+                rulesVersion = RulesInfo.Version,
+                dataHash = content.DataHash,
             });
         });
         app.Map("/ws", HandleWebSocketAsync);
