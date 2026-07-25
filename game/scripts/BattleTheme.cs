@@ -106,6 +106,9 @@ public static class BattleTheme
     private static readonly (int L, int T, int R, int B) LeatherMargins = (74, 74, 74, 74);
     private static readonly (int L, int T, int R, int B) ParchMargins = (96, 110, 96, 130);
     private static readonly (int L, int T, int R, int B) BannerMargins = (190, 70, 190, 70);
+    // Dedicated deck dossier tab. Its end caps carry the ornament; the broad center is a smoked-leather
+    // command ledger, deliberately darker than the parchment window so the chosen deck reads as the subject.
+    private static readonly (int L, int T, int R, int B) DeckPickerRowMargins = (68, 22, 68, 22);
 
     /// <summary>Build a nine-slice StyleBoxTexture from a chrome asset; null when the texture is missing so
     /// callers fall back to a flat StyleBox.</summary>
@@ -130,6 +133,9 @@ public static class BattleTheme
     public static StyleBoxTexture? ParchmentPanel(Color? modulate = null) =>
         NineSlice("ui/panel_parchment_wide.png", (76, 76, 76, 76), modulate) // frame measured ≈76px (rev5: 46 let the border stretch inward)
         ?? NineSlice("ui/panel_parchment.png", ParchMargins, modulate);
+
+    private static StyleBoxTexture? DeckPickerRowBox(Color modulate) =>
+        NineSlice("ui/deck_picker_row_dark.png", DeckPickerRowMargins, modulate);
 
     /// <summary>The dark bronze title plaque (batch 2) hung at a window's top edge; text goes on top of it.</summary>
     public static TextureRect? TitlePlaque(Vector2 pos, Vector2 size) =>
@@ -421,6 +427,37 @@ public static class BattleTheme
 
     public static void SetButtonBg(Button btn, Color bg, Color? border = null, int borderWidth = 0, int radius = 8) =>
         ApplyButtonSkin(btn, bg, border, borderWidth, radius, btn.HasMeta(PlateMeta));
+
+    /// <summary>Skin a deck selector as a smoked-leather command dossier rather than a second parchment
+    /// sheet. The five explicit states preserve ordinary Button feedback while keeping ivory type readable.</summary>
+    public static void SkinDeckPickerRow(Button btn)
+    {
+        if (DeckPickerRowBox(Colors.White) is not null)
+        {
+            btn.AddThemeStyleboxOverride("normal", DeckPickerRowBox(Colors.White)!);
+            btn.AddThemeStyleboxOverride("hover", DeckPickerRowBox(new Color(1.12f, 1.09f, 1.02f))!);
+            btn.AddThemeStyleboxOverride("pressed", DeckPickerRowBox(new Color(0.78f, 0.80f, 0.78f))!);
+            btn.AddThemeStyleboxOverride("focus", DeckPickerRowBox(new Color(1.04f, 1.10f, 1.08f))!);
+            btn.AddThemeStyleboxOverride("disabled", DeckPickerRowBox(new Color(0.50f, 0.50f, 0.50f, 0.72f))!);
+        }
+        else
+        {
+            var leather = Color.FromHtml("24211d");
+            var bronze = Color.FromHtml("8d6a3b");
+            btn.AddThemeStyleboxOverride("normal", Box(leather, bronze, 2, 8));
+            btn.AddThemeStyleboxOverride("hover", Box(leather.Lightened(0.06f), Color.FromHtml("b4935c"), 2, 8));
+            btn.AddThemeStyleboxOverride("pressed", Box(leather.Darkened(0.10f), AccentSoft, 2, 8));
+            btn.AddThemeStyleboxOverride("focus", Box(leather, Accent, 2, 8));
+            btn.AddThemeStyleboxOverride("disabled", Box(leather.Darkened(0.18f), TextDim, 2, 8));
+        }
+        btn.AddThemeColorOverride("font_color", TextMain);
+        btn.AddThemeColorOverride("font_hover_color", Colors.White);
+        btn.AddThemeColorOverride("font_pressed_color", TextMain);
+        btn.AddThemeColorOverride("font_focus_color", TextMain);
+        btn.AddThemeColorOverride("font_disabled_color", TextDim);
+        btn.AddThemeColorOverride("font_outline_color", new Color(0.03f, 0.025f, 0.02f, 0.90f));
+        btn.AddThemeConstantOverride("outline_size", 3);
+    }
 
     // ---------- selection ring (docs/18 rev2): picked = glowing accent frame, not just a tint swap ----------
 

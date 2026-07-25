@@ -16,7 +16,7 @@ namespace HoldTheLine.Game;
 /// exist, and the overlay — a single wide column, so each row can afford real information — is the only
 /// place that has to scale.</para>
 ///
-/// <para>Rows are built to separate decks a name alone doesn't: faction stripe, leader, size, a mini cost
+/// <para>Rows are built to separate decks a name alone doesn't: leader portrait, size, a mini cost
 /// curve, and the cards the list stacks. Two 游群 decks read as different here even when both are named 游群.</para>
 /// </summary>
 public partial class MenuScene
@@ -157,7 +157,8 @@ public partial class MenuScene
         var sel = opts.FirstOrDefault(o => o.Key == current);
 
         var b = BattleTheme.MakeButton(new Vector2(x0, y), new Vector2(width, SlotH),
-            BattleTheme.PanelDark, BattleTheme.Accent, 2, 10, textured: true);
+            BattleTheme.PanelDark, BattleTheme.Accent, 2, 10);
+        BattleTheme.SkinDeckPickerRow(b);
         b.TooltipText = sel is null ? "" : OptionTip(sel);
         b.Pressed += () => ShowDeckPicker(pickerTitle, opts, current, set, back, collapseOwn);
         win.AddChild(b);
@@ -166,12 +167,12 @@ public partial class MenuScene
             DecorateSlot(b, sel, width);
         else
         {
-            var none = BattleTheme.MakeOutlinedLabel("还没有卡组 —— 点此选择", 24, BattleTheme.TextDim);
+            var none = DeckRowLabel("还没有卡组 —— 点此选择", 22, RowMeta);
             none.Position = new Vector2(SlotPad + 22, 0); none.Size = new Vector2(width - 160, SlotH);
             b.AddChild(none);
         }
 
-        var chevron = BattleTheme.MakeOutlinedLabel("▾", 28, BattleTheme.Accent, HorizontalAlignment.Center);
+        var chevron = DeckRowLabel("▾", 28, RowAccent, HorizontalAlignment.Center);
         chevron.Position = new Vector2(width - SlotPad - 40, 0); chevron.Size = new Vector2(40, SlotH);
         b.AddChild(chevron);
         return SlotH;
@@ -183,43 +184,104 @@ public partial class MenuScene
     /// instead of the metal.</summary>
     private const float SlotPad = 70f;
 
-    /// <summary>Slot face: faction stripe + name on the left, identity line under it, curve on the right.
-    /// The faction tint was already computed for every option by the old grid and then thrown away.</summary>
+    /// <summary>Slot face: leader medallion + display-serif deck name, identity line, and curve. The portrait
+    /// carries faction identity without turning the row into a colour legend.</summary>
     private static void DecorateSlot(Control host, DeckOption o, float width)
     {
-        host.AddChild(FactionStripe(o, new Vector2(SlotPad, 16), SlotH - 32));
+        host.AddChild(DeckAvatar(o, new Vector2(42, 9), 70));
 
-        var name = BattleTheme.MakeOutlinedLabel(o.Warning ? "⚠ " + o.Name : o.Name, 26,
-            o.Warning ? BattleTheme.DangerColor : BattleTheme.TextMain);
-        name.Position = new Vector2(SlotPad + 22, 8); name.Size = new Vector2(width * 0.45f, 34); name.ClipText = true;
+        var name = DeckTitleLabel(o.Warning ? "⚠ " + o.Name : o.Name, 27,
+            o.Warning ? BattleTheme.DangerColor.Lightened(0.08f) : RowTitle);
+        name.Position = new Vector2(128, 7); name.Size = new Vector2(width * 0.45f, 36); name.ClipText = true;
         host.AddChild(name);
 
-        // Outlined, not plain: the plate is a photographed steel texture with rivets running through it, and a
-        // flat dim label disappears into them.
-        var sub = BattleTheme.MakeOutlinedLabel(o.Random ? "按难度随机挑一套对手卡组" : DeckIdentity(o), 20, SubText);
-        sub.Position = new Vector2(SlotPad + 22, 46); sub.Size = new Vector2(width * 0.55f, 28); sub.ClipText = true;
+        var sub = DeckRowLabel(o.Random ? "按难度随机挑一套对手卡组" : DeckIdentityCompact(o), 18,
+            DeckMetaColor(o));
+        sub.Position = new Vector2(130, 47); sub.Size = new Vector2(width * 0.55f, 26); sub.ClipText = true;
         host.AddChild(sub);
 
         if (!o.Random && o.CardIds.Count > 0)
-            host.AddChild(CostCurve(o.CardIds, new Vector2(width - SlotPad - 190, 24), 140f, 40f));
+            host.AddChild(CostCurve(o.CardIds, new Vector2(width - SlotPad - 190, 22), 140f, 42f));
     }
 
-    /// <summary>Secondary text on a steel plate — dimmer than the name, still well clear of the metal.</summary>
-    private static readonly Color SubText = BattleTheme.TextMain.Lerp(BattleTheme.TextDim, 0.55f);
+    private static readonly Color RowTitle = Color.FromHtml("eee2cd");
+    private static readonly Color RowMeta = Color.FromHtml("b9ad99");
+    private static readonly Color RowAccent = Color.FromHtml("c3a46b");
+    private static readonly Color DeckFrame = Color.FromHtml("8d6a3b");
 
-    /// <summary>Vertical faction-colour bar — the mark that survives at any size, so sibling decks read as
-    /// siblings before a single word is parsed.</summary>
-    private static Panel FactionStripe(DeckOption o, Vector2 pos, float height)
+    /// <summary>Faction colour is now supporting information, never the identity by itself: it is confined
+    /// to the portrait jewellery and a lightly coloured metadata line while the avatar remains primary.</summary>
+    private static Color DeckIdentityTint(DeckOption o) =>
+        o.Random ? BattleTheme.AtkColor : FactionTint(o.Faction);
+
+    private static Color DeckMetaColor(DeckOption o) =>
+        RowMeta.Lerp(DeckIdentityTint(o).Lightened(0.16f), 0.38f);
+
+    private static Label InkLabel(string text, int size, Color color,
+        HorizontalAlignment align = HorizontalAlignment.Left)
     {
-        var bar = new Panel
+        var label = BattleTheme.MakeLabel(text, size, color, align);
+        label.AddThemeFontOverride("font", BattleTheme.UiFontBold);
+        return label;
+    }
+
+    private static Label DeckTitleLabel(string text, int size, Color color)
+    {
+        var label = BattleTheme.MakeLabel(text, size, color);
+        label.AddThemeFontOverride("font", BattleTheme.HeadingFont);
+        label.AddThemeColorOverride("font_outline_color", new Color(0.035f, 0.03f, 0.025f, 0.96f));
+        label.AddThemeConstantOverride("outline_size", 4);
+        return label;
+    }
+
+    private static Label DeckRowLabel(string text, int size, Color color,
+        HorizontalAlignment align = HorizontalAlignment.Left)
+    {
+        var label = BattleTheme.MakeLabel(text, size, color, align);
+        label.AddThemeFontOverride("font", BattleTheme.UiFont);
+        label.AddThemeColorOverride("font_outline_color", new Color(0.035f, 0.03f, 0.025f, 0.78f));
+        label.AddThemeConstantOverride("outline_size", 2);
+        return label;
+    }
+
+    /// <summary>A leader portrait worn like a wax seal over the dossier's left clasp. This is the row's
+    /// signature element and replaces the old abstract faction-colour stripe.</summary>
+    private static Control DeckAvatar(DeckOption o, Vector2 pos, float size)
+    {
+        Color identity = DeckIdentityTint(o);
+        var host = new Control
         {
             Position = pos,
-            Size = new Vector2(6, height),
+            Size = new Vector2(size, size),
             MouseFilter = Control.MouseFilterEnum.Ignore,
         };
-        bar.AddThemeStyleboxOverride("panel",
-            BattleTheme.Box(o.Random ? BattleTheme.AtkColor : FactionTint(o.Faction), null, 0, 3));
-        return bar;
+        var rim = new Panel { Position = Vector2.Zero, Size = host.Size, MouseFilter = Control.MouseFilterEnum.Ignore };
+        rim.AddThemeStyleboxOverride("panel",
+            BattleTheme.Box(Color.FromHtml("171410"), identity.Lerp(DeckFrame, 0.18f), 4, (int)(size / 2f)));
+        host.AddChild(rim);
+
+        // A thin antique-bronze inner bead keeps every faction ring in the same material language.
+        var bead = new Panel
+        {
+            Position = new Vector2(4, 4),
+            Size = new Vector2(size - 8, size - 8),
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        bead.AddThemeStyleboxOverride("panel",
+            BattleTheme.Box(Colors.Transparent, new Color(RowAccent, 0.72f), 1, (int)(size / 2f)));
+        host.AddChild(bead);
+
+        Texture2D? tex = o.Leader is { Length: > 0 }
+            ? BattleTheme.Tex($"leaders/{o.Leader}.png")
+            : null;
+        tex ??= o.Random
+            ? BattleTheme.Tex("ui/icons/icon_vs_ai.png")
+            : BattleTheme.Tex($"ui/emblem_{o.Faction}.png");
+        tex ??= BattleTheme.Tex("ui/emblem_neutral.png");
+        if (tex != null)
+            host.AddChild(BattleTheme.Art(tex, new Vector2(5, 5), new Vector2(size - 10, size - 10),
+                TextureRect.StretchModeEnum.KeepAspectCentered));
+        return host;
     }
 
     // ---------- the picker overlay ----------
@@ -243,12 +305,15 @@ public partial class MenuScene
             Size = new Vector2(PickerW - 2 * PickerListX, PickerListBottom - PickerListTop),
         };
         scroll.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled;
+        TuneDeckPickerScrollForTouch(scroll);
         win.AddChild(scroll);
         var list = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         list.AddThemeConstantOverride("separation", 10);
         scroll.AddChild(list);
 
-        const float rowW = PickerW - 2 * PickerListX - 22; // scroll width minus the vertical scrollbar gutter
+        // Mobile's finger-sized bar needs a wider gutter; don't let the dossier tab hide beneath it.
+        float scrollGutter = DisplayServer.IsTouchscreenAvailable() ? 42f : 22f;
+        float rowW = PickerW - 2 * PickerListX - scrollGutter;
         string last = LastUsedKey();
         void Pick(string key) { set(key); back(); }
         void AddRow(DeckOption o) => list.AddChild(PickerRow(o, rowW, o.Key == current, last, Pick));
@@ -275,8 +340,10 @@ public partial class MenuScene
                 toggle.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
                 toggle.Text = (expand ? "▾   收起我的卡组" : $"▸   用我的卡组当对手 ({own.Count})");
                 toggle.AddThemeFontSizeOverride("font_size", 21);
+                PointerIntent? toggleIntent = DisplayServer.IsTouchscreenAvailable() ? PointerIntent.Attach(toggle) : null;
                 toggle.Pressed += () =>
                 {
+                    if (toggleIntent?.ConsumeRecentGesture() == true) return;
                     _pickerShowOwn = !expand;
                     ShowDeckPicker(title, opts, current, set, back, collapseOwn);
                 };
@@ -313,7 +380,7 @@ public partial class MenuScene
             CustomMinimumSize = new Vector2(width, 46),
             SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin,
         };
-        var l = BattleTheme.MakeOutlinedLabel(text, 21, BattleTheme.AtkColor);
+        var l = InkLabel(text, 21, BattleTheme.InkMain);
         l.Position = new Vector2(4, 8); l.Size = new Vector2(width - 8, 32);
         head.AddChild(l);
         var rule = new Panel
@@ -332,56 +399,62 @@ public partial class MenuScene
     private static Control PickerRow(DeckOption o, float width, bool selected, string lastUsed, System.Action<string> pick)
     {
         var b = BattleTheme.MakeButton(Vector2.Zero, new Vector2(width, PickerRowH),
-            BattleTheme.PanelDark, FactionTint(o.Faction), 2, 10, textured: true);
+            BattleTheme.PanelDark, DeckFrame, 2, 10);
+        BattleTheme.SkinDeckPickerRow(b);
         b.CustomMinimumSize = new Vector2(width, PickerRowH);
         b.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
         b.TooltipText = OptionTip(o);
-        b.Pressed += () => pick(o.Key);
+        PointerIntent? rowIntent = DisplayServer.IsTouchscreenAvailable() ? PointerIntent.Attach(b) : null;
+        b.Pressed += () =>
+        {
+            if (rowIntent?.ConsumeRecentGesture() == true) return;
+            pick(o.Key);
+        };
 
-        b.AddChild(FactionStripe(o, new Vector2(SlotPad, 18), PickerRowH - 36));
+        b.AddChild(DeckAvatar(o, new Vector2(40, 14), 76));
 
-        float nameW = width * 0.28f;
-        var name = BattleTheme.MakeOutlinedLabel(o.Warning ? "⚠ " + o.Name : o.Name, 26,
-            o.Warning ? BattleTheme.DangerColor : BattleTheme.TextMain);
-        name.Position = new Vector2(SlotPad + 22, 10); name.Size = new Vector2(nameW, 34); name.ClipText = true;
+        const float contentX = 136f;
+        const float nameW = 290f;
+        var name = DeckTitleLabel(o.Warning ? "⚠ " + o.Name : o.Name, 27,
+            o.Warning ? BattleTheme.DangerColor.Lightened(0.08f) : RowTitle);
+        name.Position = new Vector2(contentX, 9); name.Size = new Vector2(nameW, 36); name.ClipText = true;
         b.AddChild(name);
 
         // Only worth calling out when it ISN'T the row already wearing the selection ring.
         if (!o.Builtin && !o.Random && o.Key == lastUsed && !selected)
         {
-            var tag = BattleTheme.MakeOutlinedLabel("上次使用", 16, BattleTheme.Accent);
-            tag.Position = new Vector2(SlotPad + 26 + nameW, 14); tag.Size = new Vector2(96, 26);
+            var tag = DeckRowLabel("上次使用", 15, RowAccent);
+            tag.Position = new Vector2(contentX + nameW + 8, 15); tag.Size = new Vector2(82, 24);
             b.AddChild(tag);
         }
 
         if (o.Random)
         {
-            var only = BattleTheme.MakeOutlinedLabel("按难度随机挑一套对手卡组,开战前不揭晓", 20, SubText);
-            only.Position = new Vector2(SlotPad + 22, 50); only.Size = new Vector2(width - 200, 28);
+            var only = DeckRowLabel("按难度随机挑一套对手卡组，开战前不揭晓", 18, RowMeta);
+            only.Position = new Vector2(contentX, 54); only.Size = new Vector2(width - contentX - 90, 28);
             b.AddChild(only);
             if (selected) BattleTheme.SetSelected(b, true);
             return b;
         }
 
-        // Right-hand block, laid out inward from the plate's bracket: 改 chip, then the curve, then the
-        // faction/leader/size line. Built-ins get no chip but keep the same columns, so the eye can compare
-        // straight down the list instead of re-finding each field per row.
-        // Right-aligned and clipped, so the column is sized for the longest real line — a 匠会 deck's
-        // "地渊匠会 · 总工·布罗姆·铆歌 · 30张" is the widest the data produces, and a narrower box ate its head.
-        var ident = BattleTheme.MakeOutlinedLabel(DeckIdentity(o), 20, BattleTheme.TextMain, HorizontalAlignment.Right);
-        ident.Position = new Vector2(width - 730, 12); ident.Size = new Vector2(430, 30); ident.ClipText = true;
+        // Compact identity shares the title line; the signature gets the quieter second line. The cost curve
+        // stays pinned at the far right so every row can be compared without scanning through prose.
+        var ident = DeckRowLabel(DeckIdentityCompact(o), 17, DeckMetaColor(o), HorizontalAlignment.Right);
+        ident.Position = new Vector2(contentX + nameW + 6, 14);
+        ident.Size = new Vector2(System.Math.Max(80f, width - contentX - nameW - 326f), 26);
+        ident.ClipText = true;
         b.AddChild(ident);
 
         if (o.CardIds.Count > 0)
         {
             b.AddChild(CostCurve(o.CardIds, new Vector2(width - 282, 12), 130f, 34f));
-            var avg = BattleTheme.MakeOutlinedLabel($"均费 {AvgCost(o.CardIds):0.0}", 16, SubText, HorizontalAlignment.Center);
+            var avg = DeckRowLabel($"均费 {AvgCost(o.CardIds):0.0}", 15, RowMeta, HorizontalAlignment.Center);
             avg.Position = new Vector2(width - 282, 50); avg.Size = new Vector2(130, 22);
             b.AddChild(avg);
         }
 
-        var sig = BattleTheme.MakeOutlinedLabel(DeckSignature(o.CardIds), 18, SubText);
-        sig.Position = new Vector2(SlotPad + 22, 56); sig.Size = new Vector2(width - 400, 32); sig.ClipText = true;
+        var sig = DeckRowLabel(DeckSignature(o.CardIds), 17, RowMeta);
+        sig.Position = new Vector2(contentX, 57); sig.Size = new Vector2(width - contentX - 330, 28); sig.ClipText = true;
         b.AddChild(sig);
 
         if (o.Edit is { } edit)
@@ -397,7 +470,12 @@ public partial class MenuScene
                 chip.AddThemeColorOverride("font_color", BattleTheme.Accent);
             }
             chip.TooltipText = "编辑这套卡组";
-            chip.Pressed += edit;
+            PointerIntent? editIntent = DisplayServer.IsTouchscreenAvailable() ? PointerIntent.Attach(chip) : null;
+            chip.Pressed += () =>
+            {
+                if (editIntent?.ConsumeRecentGesture() == true) return;
+                edit();
+            };
             b.AddChild(chip);
         }
 
@@ -405,15 +483,37 @@ public partial class MenuScene
         return b;
     }
 
+    // Match the deck editor's mobile affordance: the bar is finger-sized, and dragging anywhere on a row
+    // pans the ScrollContainer through PointerIntent. Desktop keeps its compact scrollbar and wheel behavior.
+    private static void TuneDeckPickerScrollForTouch(ScrollContainer sc)
+    {
+        if (!DisplayServer.IsTouchscreenAvailable()) return;
+        sc.ScrollDeadzone = 20;
+        var vsb = sc.GetVScrollBar();
+        vsb.CustomMinimumSize = new Vector2(34, 0);
+        var grabber = new StyleBoxFlat { BgColor = new Color(0.61f, 0.42f, 0.18f, 0.96f) };
+        grabber.SetCornerRadiusAll(8);
+        vsb.AddThemeStyleboxOverride("grabber", grabber);
+        var grabberHover = new StyleBoxFlat { BgColor = grabber.BgColor.Lightened(0.08f) };
+        grabberHover.SetCornerRadiusAll(8);
+        vsb.AddThemeStyleboxOverride("grabber_highlight", grabberHover);
+        var grabberPressed = new StyleBoxFlat { BgColor = grabber.BgColor.Darkened(0.08f) };
+        grabberPressed.SetCornerRadiusAll(8);
+        vsb.AddThemeStyleboxOverride("grabber_pressed", grabberPressed);
+        var track = new StyleBoxFlat { BgColor = new Color(0.16f, 0.11f, 0.06f, 0.28f) };
+        track.SetCornerRadiusAll(8);
+        vsb.AddThemeStyleboxOverride("scroll", track);
+    }
+
     // ---------- per-deck descriptors ----------
 
-    /// <summary>"游群 · 誓火侍从 · 30张" — faction, leader, size on one line.</summary>
-    private static string DeckIdentity(DeckOption o)
+    /// <summary>The portrait already carries faction identity, so the row only repeats the leader + size.
+    /// This avoids the old title-like metadata sentence competing with the actual deck name.</summary>
+    private static string DeckIdentityCompact(DeckOption o)
     {
         _tipLeaders ??= GameData.LoadLeaders();
-        string faction = CardView.FactionName(o.Faction);
         string leader = o.Leader != null && _tipLeaders.TryGet(o.Leader, out var ld) ? ld.Name : "—";
-        return $"{faction} · {leader} · {o.CardIds.Count}张";
+        return $"{leader}  ·  {o.CardIds.Count}张";
     }
 
     /// <summary>The cards a deck actually leans on: most-copied first, ties broken by cost so an expensive
@@ -476,7 +576,7 @@ public partial class MenuScene
                 MouseFilter = Control.MouseFilterEnum.Ignore,
             };
             bar.AddThemeStyleboxOverride("panel",
-                BattleTheme.Box(new Color(BattleTheme.CostColor, counts[i] > 0 ? 0.85f : 0.22f), null, 0, 2));
+                BattleTheme.Box(new Color(RowAccent, counts[i] > 0 ? 0.90f : 0.20f), null, 0, 2));
             host.AddChild(bar);
         }
         return host;
