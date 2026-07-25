@@ -191,10 +191,12 @@ public sealed class PlaybackDirector
 					$"继承装配 ×{inherited.ModuleCardIds.Count}", BattleTheme.CostColor, [], 0, 0, null);
 				break;
 			case GarrisonLockedEvent gl when _view.Standee(gl.UnitEntityId) is { } gn:
-				// 反击号角: no stat delta to animate — say what changed, since the 驻防 badge is about to disappear.
+				// 反击号角: no stat delta to animate — say what changed. 驻防 lives in the keyword strip ("防"),
+				// not the status badges, so refresh the whole appearance to drop it on this beat rather than
+				// leaving it up until the post-playback FullRender.
 				Flash(gn, BattleTheme.Accent);
 				_view.FloatText(Center(gn), "驻防·永久", BattleTheme.Accent);
-				_view.RefreshStandeeStatus(gl.UnitEntityId);
+				_view.RefreshStandeeAppearance(gl.UnitEntityId);
 				await Delay(0.12);
 				break;
 			case UnitKeywordGrantedEvent kg when kg.Keyword == Keyword.Shield && _view.Standee(kg.UnitEntityId) is { } kn:
