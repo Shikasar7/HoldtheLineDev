@@ -156,7 +156,7 @@
   },
   "iv_oath_banner": {
     "zoom": 0.95,
-    "offset_x": 0.11,
+    "offset_x": 0.01,
     "offset_y": 0.03
   },
   "iv_garrison_guard": {
@@ -181,7 +181,7 @@
   },
   "iv_hold_the_line": {
     "zoom": 0.95,
-    "offset_x": 0.11,
+    "offset_x": 0.01,
     "offset_y": 0.07
   },
   "iv_oathguard": {
@@ -190,9 +190,9 @@
     "offset_y": 0.33
   },
   "iv_overline_execution": {
-    "zoom": 0.9,
-    "offset_x": 0.04,
-    "offset_y": 0.08
+    "zoom": 1,
+    "offset_x": -0.02,
+    "offset_y": 0.06
   },
   "iv_garrison_captain": {
     "zoom": 1,
@@ -213,11 +213,6 @@
     "zoom": 1,
     "offset_x": -0.02,
     "offset_y": 0.19
-  },
-  "iv_last_bastion": {
-    "zoom": 0.95,
-    "offset_x": -0.14,
-    "offset_y": 0.03
   },
   "iv_oath_avenger": {
     "zoom": 1,
@@ -647,9 +642,12 @@
     "offset_x": -0.01,
     "offset_y": 0.25
   },
-  "dw_spark": {
+  "iv_guardian_vow": {
     "zoom": 1,
-    "offset_x": -0.05,
-    "offset_y": -0.03
+    "offset_x": -0.13
+  },
+  "iv_counter_horn": {
+    "zoom": 1,
+    "offset_x": 0.32
   }
 }
