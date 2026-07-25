@@ -58,12 +58,13 @@ public partial class MenuScene : Control
 
         // Main menu (docs/12 C1): one entry per mode. Uniform steel plates + a left entry icon (docs/18 §4.1),
         // no more per-button rainbow — colour is reserved for state, not identity.
-        AddButton("新手教学", "icon_vs_ai", new Vector2(660, 440), StartTutorial);
-        AddButton("人机对战", "icon_vs_ai", new Vector2(660, 528), () => ShowVsAiPanel());
-        AddButton("同屏对战", "icon_hotseat", new Vector2(660, 616), ShowHotseatPanel);
-        AddButton("联机对战", "icon_online", new Vector2(660, 704), ShowOnlinePanel);
-        AddButton("卡组管理", "icon_decks", new Vector2(660, 792), () => ShowDeckManager());
-        AddButton("退出", "icon_exit", new Vector2(660, 880), () => GetTree().Quit());
+        // The tutorial is NOT a main-menu mode: it is offered by the first-launch 欢迎 popup and lives on
+        // afterwards inside 人机对战 — a permanent top-level slot for a one-off is clutter for everyone else.
+        AddButton("人机对战", "icon_vs_ai", new Vector2(660, 440), () => ShowVsAiPanel());
+        AddButton("同屏对战", "icon_hotseat", new Vector2(660, 528), ShowHotseatPanel);
+        AddButton("联机对战", "icon_online", new Vector2(660, 616), ShowOnlinePanel);
+        AddButton("卡组管理", "icon_decks", new Vector2(660, 704), () => ShowDeckManager());
+        AddButton("退出", "icon_exit", new Vector2(660, 792), () => GetTree().Quit());
 
         AddVersionLabel();
         AddUpdateBanner();
@@ -326,10 +327,13 @@ public partial class MenuScene : Control
     }
 
     /// <summary>Login (isRegister=false) or register-a-new-account (isRegister=true) — one form; they differ
-    /// only in copy, password floor, the register-only fresh-identity, and which auth call + offerName.</summary>
+    /// only in copy, password floor, the register-only confirm field + fresh-identity, and which auth call +
+    /// offerName. Register grows the window by one field row (<c>extra</c>) so the shared rows below shift down.</summary>
     private void ShowAuthForm(bool isRegister)
     {
-        var win = WindowPanelTitled(new Vector2(760, 660), isRegister ? "注 册 新 账 号" : "登 录");
+        const float extra = 106f; // one label+field row — register only
+        float shift = isRegister ? extra : 0f;
+        var win = WindowPanelTitled(new Vector2(760, 660 + shift), isRegister ? "注 册 新 账 号" : "登 录");
         WinLabel(win, isRegister ? "创建一个全新账号(与任何游客进度无关),用户名+密码登录"
                                  : "登录已有账号(会挤下其它已登录的设备)", WinContentTop, 20, BattleTheme.InkDim);
         WinLabel(win, "用 户 名", 170, 22, BattleTheme.InkMain);
@@ -339,8 +343,17 @@ public partial class MenuScene : Control
         var pass = Field("", "至少 8 位", new Vector2(120, 308), 520);
         pass.Secret = true;
         win.AddChild(pass);
-        var status = WinLabel(win, "", 382, 22, BattleTheme.DangerColor);
-        var go = BtnPrimary(isRegister ? "注册" : "登录", new Vector2(120, 424), new Vector2(520, 64), null!);
+        // Typo guard: a mistyped new password is unrecoverable (no email on file), so registration types it twice.
+        LineEdit? confirm = null;
+        if (isRegister)
+        {
+            WinLabel(win, "确 认 密 码", 382, 22, BattleTheme.InkMain);
+            confirm = Field("", "再输入一次", new Vector2(120, 414), 520);
+            confirm.Secret = true;
+            win.AddChild(confirm);
+        }
+        var status = WinLabel(win, "", 382 + shift, 22, BattleTheme.DangerColor);
+        var go = BtnPrimary(isRegister ? "注册" : "登录", new Vector2(120, 424 + shift), new Vector2(520, 64), null!);
         // Guarded against the panel being freed mid-await (返回 during a slow connect/auth).
         void Set(string t, Color c) { if (GodotObject.IsInstanceValid(status)) { status.Text = t; status.AddThemeColorOverride("font_color", c); } }
         void Enable() { if (GodotObject.IsInstanceValid(go)) go.Disabled = false; }
@@ -350,6 +363,7 @@ public partial class MenuScene : Control
             string u = user.Text.Trim();
             if (u.Length is < 2 or > 20) { Set("用户名需 2-20 个字符", BattleTheme.DangerColor); return; }
             if (pass.Text.Length < (isRegister ? 8 : 1)) { Set(isRegister ? "密码至少 8 位" : "请输入密码", BattleTheme.DangerColor); return; }
+            if (confirm != null && confirm.Text != pass.Text) { Set("两次输入的密码不一致", BattleTheme.DangerColor); return; }
             if (GodotObject.IsInstanceValid(go)) go.Disabled = true;
             Set("连接中…", BattleTheme.InkDim); // dark ink — TextDim washes out on the parchment window
             // 方案 A (docs/16 §2): a brand-new account = a brand-new guest identity. Clear only when NOT already
@@ -363,7 +377,7 @@ public partial class MenuScene : Control
             else { Enable(); Set(AuthErrorText(err), BattleTheme.DangerColor); }
         };
         win.AddChild(go);
-        win.AddChild(Btn("返回", new Vector2(120, 504), new Vector2(520, 52), ShowLoginPage));
+        win.AddChild(Btn("返回", new Vector2(120, 504 + shift), new Vector2(520, 52), ShowLoginPage));
     }
 
     private async void EnterAsGuest()
@@ -395,7 +409,7 @@ public partial class MenuScene : Control
     }
 
     /// <summary>docs/23: first-launch welcome — introduces the 卡牌×战旗 premise and offers the tutorial. Shown
-    /// once (Prefs.WelcomeSeen); the tutorial is re-enterable from the main menu / 人机对战 panel afterwards.</summary>
+    /// once (Prefs.WelcomeSeen); the tutorial is re-enterable from the 人机对战 panel afterwards.</summary>
     private void ShowWelcomePopup()
     {
         var win = WindowPanelTitled(new Vector2(940, 720), "欢 迎 来 到 守 线");
@@ -556,36 +570,25 @@ public partial class MenuScene : Control
     private void ShowLobby()
     {
         var pf = Session.Profile;
-        // The player's saved decks first (from the last profile push), then the built-in starters. A saved deck
-        // that references a removed card (a rework — 方案3) is flagged ⚠: it can't be queued until repaired.
-        var options = new List<(string Id, string Label, Color Color, string Tip)>();
-        if (pf != null)
-            foreach (var d in pf.Decks)
-            {
-                bool bad = DeckObsolete(d.CardIds);
-                string label = bad ? "⚠ " + d.Name : d.Name;
-                string tip = bad ? "⚠ 含已移除卡牌,需在编辑器修复,或用「清理失效卡组」删除\n" + DeckTip(d.Leader, d.CardIds)
-                                 : DeckTip(d.Leader, d.CardIds);
-                options.Add((d.Id, label, FactionTint(d.Faction), tip));
-            }
-        foreach (var d in DeckOptions) options.Add((d.Id, d.Label, d.Color, BuiltinDeckTip(d.Id)));
-        if (options.All(o => o.Id != _lobbyDeck)) // first open / deleted deck → last used, else newest edited
+        // The account's saved decks (from the last profile push), then the built-in starters. A saved deck that
+        // references a removed card (a rework — 方案3) is flagged ⚠: it can't be queued until repaired.
+        var options = ServerDeckOptions(pf);
+        options.AddRange(BuiltinDeckOptions());
+        if (options.All(o => o.Key != _lobbyDeck)) // first open / deleted deck → last used, else newest edited
             _lobbyDeck = DefaultLobbyDeck(options);
-        int ownCount = pf?.Decks.Count ?? 0;
         int strays = StrayServerDecks(pf).Count; // 方案3: server decks the local manager can't reach / repair
 
-        // docs/18 rev3: one parchment sheet, everything visible — deck grid (3 columns, edit chips beside
-        // own decks), then the action stack with the gold ranked-queue CTA. The 清理失效卡组 row appears only
-        // when there is something to clean, so a healthy account never sees it.
+        // docs/18 rev3 + docs/24: one parchment sheet with a single deck slot (the collection lives in the
+        // picker), then the action stack with the gold ranked-queue CTA. The 清理失效卡组 row appears only when
+        // there is something to clean, so a healthy account never sees it.
         float cleanupH = strays > 0 ? 56 + 16 : 0;
-        float winH = WinContentTop + 40 + 34 + GridHeight(options.Count) + 28 + 76 + 16 + 60 + 16 + cleanupH + 56 + 16 + 56 + 16 + 52 + WinContentBottom;
+        float winH = WinContentTop + 40 + 34 + SlotH + 28 + 76 + 16 + 60 + 16 + cleanupH + 56 + 16 + 56 + 16 + 52 + WinContentBottom;
         var win = WindowPanelTitled(new Vector2(1160, winH), pf != null ? pf.Name : "已 连 接");
 
         float y = WinContentTop;
         WinLabel(win, pf != null ? $"评分 {pf.Rating}   ·   胜 {pf.Wins} / 负 {pf.Losses}" : "", y, 24, BattleTheme.InkDim); y += 40;
         WinLabel(win, "当 前 卡 组", y, 22, BattleTheme.InkMain); y += 34;
-        y += GridSelect(win, y, options, () => _lobbyDeck, id => _lobbyDeck = id, btnW: 270,
-            editFor: i => i < ownCount && pf != null ? EditActionFor(pf.Decks[i]) : null) + 28;
+        y += DeckSlot(win, y, 880, options, _lobbyDeck, "选 择 卡 组", k => _lobbyDeck = k, ShowLobby) + 28;
 
         win.AddChild(BtnPrimary("排 位 匹 配", new Vector2((1160 - 520) / 2f, y), new Vector2(520, 76), StartQueue)); y += 92;
         win.AddChild(Btn("好友房间", new Vector2((1160 - 520) / 2f, y), new Vector2(520, 60), ShowFriendRoom)); y += 76;
@@ -600,8 +603,6 @@ public partial class MenuScene : Control
         win.AddChild(Btn("断开连接", new Vector2(588, y), new Vector2(340, 56), async () => { await Session.DisconnectAsync(); CloseOverlay(); })); y += 72;
         win.AddChild(Btn("返回", new Vector2((1160 - 520) / 2f, y), new Vector2(520, 52), CloseOverlay));
     }
-
-    private System.Action EditActionFor(DeckSummary ds) => () => EditServerDeck(ds);
 
     private async void StartQueue()
     {
@@ -764,15 +765,15 @@ public partial class MenuScene : Control
     /// <summary>Default lobby deck when nothing is selected yet: the deck last taken into an online match,
     /// else the newest-edited local deck that the server also has (matched by its server id), else the
     /// first option (own decks sort before the builtins).</summary>
-    private static string DefaultLobbyDeck(List<(string Id, string Label, Color Color, string Tip)> options)
+    private static string DefaultLobbyDeck(List<DeckOption> options)
     {
         string last = Prefs.LastLobbyDeck;
-        if (options.Any(o => o.Id == last))
+        if (options.Any(o => o.Key == last))
             return last;
         foreach (var d in DeckStorage.LoadAll().OrderByDescending(x => x.UpdatedAt))
-            if (d.ServerId is { } sid && options.Any(o => o.Id == sid))
+            if (d.ServerId is { } sid && options.Any(o => o.Key == sid))
                 return sid;
-        return options[0].Id;
+        return options[0].Key;
     }
 
     // Card/leader lookups for the hover tooltips — loaded once, shared by every picker.
@@ -972,7 +973,7 @@ public partial class MenuScene : Control
     /// (register keeps its "把当前进度绑定" semantics) or switch accounts (login), and log out.</summary>
     private void ShowAccountPanel()
     {
-        var win = WindowPanelTitled(new Vector2(900, 800), "账 号");
+        var win = WindowPanelTitled(new Vector2(900, 920), "账 号");
         WinLabel(win, Session.BoundUsername is { } bound ? $"已绑定账号:{bound}" : "当前为游客身份(本机密钥)", WinContentTop, 22, BattleTheme.InkMain);
 
         // --- display name (docs/16 §3): change it in place, applies immediately ---
@@ -1003,15 +1004,21 @@ public partial class MenuScene : Control
         var pass = Field("", "至少 8 位", new Vector2(190, 470), 520);
         pass.Secret = true;
         win.AddChild(pass);
+        // Register types the password twice (typo guard); login ignores this field.
+        WinLabel(win, "确 认 密 码(仅 注 册)", 544, 20, BattleTheme.InkMain);
+        var confirm = Field("", "再输入一次", new Vector2(190, 574), 520);
+        confirm.Secret = true;
+        win.AddChild(confirm);
 
-        var status = WinLabel(win, "", 540, 22, BattleTheme.DangerColor);
+        var status = WinLabel(win, "", 644, 22, BattleTheme.DangerColor);
         void SetStatus(string text, Color color) { if (GodotObject.IsInstanceValid(status)) { status.Text = text; status.AddThemeColorOverride("font_color", color); } }
 
-        var register = Btn("注册(绑定当前进度)", new Vector2(190, 582), new Vector2(250, 56), null!);
-        var login = Btn("登录(切换账号)", new Vector2(460, 582), new Vector2(250, 56), null!);
+        var register = Btn("注册(绑定当前进度)", new Vector2(190, 686), new Vector2(250, 56), null!);
+        var login = Btn("登录(切换账号)", new Vector2(460, 686), new Vector2(250, 56), null!);
         register.Pressed += async () =>
         {
             string u = user.Text.Trim(); // capture before the await — the panel may be freed by then
+            if (confirm.Text != pass.Text) { SetStatus("两次输入的密码不一致", BattleTheme.DangerColor); return; }
             SetStatus("注册中…", BattleTheme.InkDim);
             var err = await Session.RegisterAsync(u, pass.Text);
             if (err is null) SetStatus($"注册成功,已绑定「{u}」", BattleTheme.AccentSoft);
@@ -1036,8 +1043,8 @@ public partial class MenuScene : Control
             SetStatus("密码功能需要加密连接(wss)", BattleTheme.DangerColor);
         }
 
-        win.AddChild(Btn("登出", new Vector2(190, 654), new Vector2(250, 52), ShowLogoutConfirm));
-        win.AddChild(Btn("返回", new Vector2(460, 654), new Vector2(250, 52), ShowLobby));
+        win.AddChild(Btn("登出", new Vector2(190, 758), new Vector2(250, 52), ShowLogoutConfirm));
+        win.AddChild(Btn("返回", new Vector2(460, 758), new Vector2(250, 52), ShowLobby));
     }
 
     // ---------- vs-AI setup (docs/12 C1+C3): my deck × difficulty × opponent, one panel ----------
@@ -1046,18 +1053,18 @@ public partial class MenuScene : Control
     private AiLevel _vsAiLevel = AiLevel.Hard;
     private string _vsAiOppDeck = "random";                 // "random", a built-in id, or "local:<id>"
 
-    /// <summary>Options for a deck grid: the player's local decks first, then the four built-ins.</summary>
-    private static List<(string Key, string Label, Color Color, string Tip)> DeckGridOptions(bool withRandom)
+    /// <summary>Options for an offline deck slot: the player's local decks, then the four built-ins.</summary>
+    private List<DeckOption> OfflineDeckOptions(bool withRandom)
     {
-        var opts = new List<(string Key, string Label, Color Color, string Tip)>();
-        if (withRandom) opts.Add(("random", "随机对手", BattleTheme.Accent, "按难度随机挑一套对手卡组"));
-        foreach (var d in DeckStorage.LoadAll()) opts.Add(($"local:{d.Id}", d.Name, FactionTint(d.Faction), DeckTip(d.Leader, d.CardIds)));
-        foreach (var d in DeckOptions) opts.Add((d.Id, d.Label, d.Color, BuiltinDeckTip(d.Id)));
+        var opts = new List<DeckOption>();
+        if (withRandom) opts.Add(RandomOption());
+        opts.AddRange(LocalDeckOptions());
+        opts.AddRange(BuiltinDeckOptions());
         return opts;
     }
 
     /// <summary>Default vs-AI deck when nothing is selected yet: last used → newest-edited local → first.</summary>
-    private static string DefaultVsAiDeck(List<(string Key, string Label, Color Color, string Tip)> opts)
+    private static string DefaultVsAiDeck(List<DeckOption> opts)
     {
         string last = Prefs.LastVsAiDeck;
         if (opts.Any(o => o.Key == last))
@@ -1071,19 +1078,21 @@ public partial class MenuScene : Control
     {
         if (preselect != null) _vsAiMyDeck = $"local:{preselect.Id}";
 
-        // docs/18 rev3: one parchment sheet holds everything — 3-column grids, zero scrollbars in the common
-        // case, sections flow down a cursor so the window height always matches its content.
-        var myOpts = DeckGridOptions(withRandom: false);
+        // docs/18 rev3 + docs/24: one parchment sheet, one slot per seat. The window height is now a constant —
+        // it used to be derived from the deck count, so a growing collection kept inflating the panel until
+        // both grids scrolled independently.
+        var myOpts = OfflineDeckOptions(withRandom: false);
         if (myOpts.All(o => o.Key != _vsAiMyDeck)) _vsAiMyDeck = DefaultVsAiDeck(myOpts); // first open / deleted → fall back
-        var oppOpts = DeckGridOptions(withRandom: true);
+        var oppOpts = OfflineDeckOptions(withRandom: true);
         if (oppOpts.All(o => o.Key != _vsAiOppDeck)) _vsAiOppDeck = "random";
 
-        float winH = WinContentTop + 34 + GridHeight(myOpts.Count) + 26 + 34 + 52 + 26 + 34 + GridHeight(oppOpts.Count) + 36 + 76 + 16 + 52 + 16 + 52 + WinContentBottom;
-        var win = WindowPanelTitled(new Vector2(1160, winH), "人 机 对 战");
+        float winH = WinContentTop + 34 + SlotH + 26 + 34 + 52 + 26 + 34 + SlotH + 36 + 76 + 16 + 52 + 16 + 52 + WinContentBottom;
+        var win = WindowPanelTitled(new Vector2(1000, winH), "人 机 对 战");
 
         float y = WinContentTop;
         WinLabel(win, "我 的 卡 组", y, 22, BattleTheme.InkMain); y += 34;
-        y += GridSelect(win, y, myOpts, () => _vsAiMyDeck, k => _vsAiMyDeck = k) + 26;
+        y += DeckSlot(win, y, 820, myOpts, _vsAiMyDeck, "选 择 我 的 卡 组",
+            k => _vsAiMyDeck = k, () => ShowVsAiPanel()) + 26;
 
         WinLabel(win, "难 度", y, 22, BattleTheme.InkMain); y += 34;
         var levels = new (AiLevel L, string Label)[] { (AiLevel.Easy, "简单"), (AiLevel.Normal, "普通"), (AiLevel.Hard, "困难") };
@@ -1100,7 +1109,7 @@ public partial class MenuScene : Control
         for (int i = 0; i < levels.Length; i++)
         {
             var lv = levels[i];
-            var b = Btn(lv.Label, new Vector2(260 + i * 220, y), new Vector2(200, 52), () => { _vsAiLevel = lv.L; RepaintLevel(); });
+            var b = Btn(lv.Label, new Vector2(180 + i * 220, y), new Vector2(200, 52), () => { _vsAiLevel = lv.L; RepaintLevel(); });
             lvlBtns[i] = b;
             win.AddChild(b);
         }
@@ -1108,11 +1117,16 @@ public partial class MenuScene : Control
         y += 52 + 26;
 
         WinLabel(win, "对 手", y, 22, BattleTheme.InkMain); y += 34;
-        y += GridSelect(win, y, oppOpts, () => _vsAiOppDeck, k => _vsAiOppDeck = k) + 36;
+        // C5: the opponent picker opens on 随机 + 预设 with the player's own collection folded away — listing
+        // every custom deck twice on one panel was half the clutter for a rarely-taken option.
+        y += DeckSlot(win, y, 820, oppOpts, _vsAiOppDeck, "选 择 对 手",
+            k => _vsAiOppDeck = k, () => ShowVsAiPanel(), collapseOwn: true) + 36;
 
-        win.AddChild(BtnPrimary("开  战", new Vector2((1160 - 520) / 2f, y), new Vector2(520, 76), StartVsAiMatch)); y += 92;
-        win.AddChild(Btn("重玩新手教学", new Vector2((1160 - 520) / 2f, y), new Vector2(520, 52), StartTutorial)); y += 68;
-        win.AddChild(Btn("返回", new Vector2((1160 - 520) / 2f, y), new Vector2(520, 52), CloseOverlay));
+        win.AddChild(BtnPrimary("开  战", new Vector2((1000 - 520) / 2f, y), new Vector2(520, 76), StartVsAiMatch)); y += 92;
+        // The tutorial's only home once the 欢迎 popup is gone (it is no longer a main-menu entry).
+        win.AddChild(Btn(Prefs.TutorialCompleted ? "重玩新手教学" : "新手教学",
+            new Vector2((1000 - 520) / 2f, y), new Vector2(520, 52), StartTutorial)); y += 68;
+        win.AddChild(Btn("返回", new Vector2((1000 - 520) / 2f, y), new Vector2(520, 52), CloseOverlay));
     }
 
     /// <summary>The faction of the deck grid key the player picked, used to steer the random opponent away
@@ -1153,7 +1167,7 @@ public partial class MenuScene : Control
     private string _hotseatDeck1 = "";
 
     /// <summary>Preselected seat deck: last used → the supplied built-in fallback → first option.</summary>
-    private static string DefaultHotseatDeck(List<(string Key, string Label, Color Color, string Tip)> opts, string last, string fallbackBuiltin)
+    private static string DefaultHotseatDeck(List<DeckOption> opts, string last, string fallbackBuiltin)
     {
         if (opts.Any(o => o.Key == last)) return last;
         if (opts.Any(o => o.Key == fallbackBuiltin)) return fallbackBuiltin;
@@ -1163,22 +1177,24 @@ public partial class MenuScene : Control
     /// <summary>同屏对战 setup: each player picks a deck (local or built-in), both driven from this device.</summary>
     private void ShowHotseatPanel()
     {
-        var opts = DeckGridOptions(withRandom: false);
+        var opts = OfflineDeckOptions(withRandom: false);
         if (opts.All(o => o.Key != _hotseatDeck0)) _hotseatDeck0 = DefaultHotseatDeck(opts, Prefs.LastHotseatDeck0, "iron_wall");
         if (opts.All(o => o.Key != _hotseatDeck1)) _hotseatDeck1 = DefaultHotseatDeck(opts, Prefs.LastHotseatDeck1, "wildpack_hunt");
 
-        float winH = WinContentTop + 34 + GridHeight(opts.Count) + 26 + 34 + GridHeight(opts.Count) + 36 + 76 + 16 + 52 + WinContentBottom;
-        var win = WindowPanelTitled(new Vector2(1160, winH), "同 屏 对 战");
+        float winH = WinContentTop + 34 + SlotH + 26 + 34 + SlotH + 36 + 76 + 16 + 52 + WinContentBottom;
+        var win = WindowPanelTitled(new Vector2(1000, winH), "同 屏 对 战");
 
         float y = WinContentTop;
         WinLabel(win, "玩 家 一 · 卡 组", y, 22, BattleTheme.InkMain); y += 34;
-        y += GridSelect(win, y, opts, () => _hotseatDeck0, k => _hotseatDeck0 = k) + 26;
+        y += DeckSlot(win, y, 820, opts, _hotseatDeck0, "玩 家 一 · 卡 组",
+            k => _hotseatDeck0 = k, ShowHotseatPanel) + 26;
 
         WinLabel(win, "玩 家 二 · 卡 组", y, 22, BattleTheme.InkMain); y += 34;
-        y += GridSelect(win, y, opts, () => _hotseatDeck1, k => _hotseatDeck1 = k) + 36;
+        y += DeckSlot(win, y, 820, opts, _hotseatDeck1, "玩 家 二 · 卡 组",
+            k => _hotseatDeck1 = k, ShowHotseatPanel) + 36;
 
-        win.AddChild(BtnPrimary("开  战", new Vector2((1160 - 520) / 2f, y), new Vector2(520, 76), StartHotseatMatch)); y += 92;
-        win.AddChild(Btn("返回", new Vector2((1160 - 520) / 2f, y), new Vector2(520, 52), CloseOverlay));
+        win.AddChild(BtnPrimary("开  战", new Vector2((1000 - 520) / 2f, y), new Vector2(520, 76), StartHotseatMatch)); y += 92;
+        win.AddChild(Btn("返回", new Vector2((1000 - 520) / 2f, y), new Vector2(520, 52), CloseOverlay));
     }
 
     private void StartHotseatMatch()
@@ -1199,10 +1215,25 @@ public partial class MenuScene : Control
         PanelLabel(p, "卡 组 管 理", 66, 52, BattleTheme.TextMain);
         PanelLabel(p, "本地卡组:编辑 / 改名 / 复制 / 口令 / 删除,或直接用于人机对战", 144, 22, BattleTheme.TextDim);
         // Transient status line under the title (口令 copy / import feedback), reused by the 口令 row buttons.
-        var status = PanelLabel(p, flash ?? "", 192, 22, BattleTheme.Accent);
+        // A just-completed cloud pull claims it first — a player who reinstalled needs to know their decks came
+        // back from the account rather than wondering whether these are the same ones.
+        int restored = DeckSync.TakeImportedCount();
+        var status = PanelLabel(p, restored > 0 ? $"已从云端恢复 {restored} 套卡组" : flash ?? "", 192, 22, BattleTheme.Accent);
 
+        // The decks of an unbound guest live only in this install's user:// — an uninstall (on Android, any
+        // uninstall) takes them with it and no cloud copy exists to restore, because the guest identity was
+        // wiped alongside them. Say so where the collection is, not only in 账号.
+        bool guest = Session.BoundUsername is null;
+        if (guest)
+        {
+            PanelLabel(p, "⚠ 当前为游客身份:卡组只存在本机,重装或换设备后无法找回", 226, 21, BattleTheme.DangerColor);
+            p.AddChild(Btn("绑定账号", new Vector2(1420, 218), new Vector2(220, 52),
+                () => { if (Session.Connected) ShowAccountPanel(); else ShowConnect(); }));
+        }
+
+        float listTop = guest ? 268 : 224;
         var decks = DeckStorage.LoadAll();
-        var scroll = new ScrollContainer { Position = new Vector2(380, 224), Size = new Vector2(1160, 672) };
+        var scroll = new ScrollContainer { Position = new Vector2(380, listTop), Size = new Vector2(1160, 896 - listTop) };
         scroll.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled;
         p.AddChild(scroll);
         var list = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
@@ -1578,82 +1609,6 @@ public partial class MenuScene : Control
         l.Size = new Vector2(size.X, 48);
         win.AddChild(l);
         return win;
-    }
-
-    // 3-column selection grid inside a window — every option visible at once (scroll only past 4 rows).
-    private const float SelCellW = 332f, SelRowH = 64f, SelBtnH = 52f;
-    private const int SelMaxRows = 4;
-
-    private static int SelRows(int count) => System.Math.Min(SelMaxRows, (count + 2) / 3);
-
-    /// <summary>Height the grid will occupy — used to pre-compute the window height before building.</summary>
-    private static float GridHeight(int count) => SelRows(count) * SelRowH - 12f;
-
-    /// <summary>Build the grid at window-relative <paramref name="y"/>; returns the height consumed.
-    /// <paramref name="editFor"/> (optional) yields a per-option edit action → a flat teal "改" chip.</summary>
-    private float GridSelect(Control win, float y, List<(string Key, string Label, Color Color, string Tip)> opts,
-        System.Func<string> get, System.Action<string> set, float btnW = 310f, System.Func<int, System.Action?>? editFor = null)
-    {
-        float gridW = 2 * SelCellW + btnW + (editFor != null ? 50f : 0f); // edit chips widen each cell's tail
-        float x0 = (win.Size.X - gridW) / 2f;
-        int fullRows = (opts.Count + 2) / 3;
-        float shownH = GridHeight(opts.Count);
-
-        Control host;
-        if (fullRows > SelMaxRows)
-        {
-            var scroll = new ScrollContainer { Position = new Vector2(x0, y), Size = new Vector2(gridW + 16, shownH) };
-            scroll.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled;
-            win.AddChild(scroll);
-            var inner = new Control { CustomMinimumSize = new Vector2(gridW, fullRows * SelRowH - 12f) };
-            scroll.AddChild(inner);
-            host = inner;
-            x0 = 0; y = 0;
-        }
-        else
-            host = win;
-
-        var btns = new Button[opts.Count];
-        System.Action repaint = () =>
-        {
-            for (int i = 0; i < opts.Count; i++)
-            {
-                bool sel = get() == opts[i].Key;
-                BattleTheme.SetButtonBg(btns[i], sel ? BattleTheme.AccentSoft : BattleTheme.PanelDark);
-                BattleTheme.SetSelected(btns[i], sel);
-            }
-        };
-        for (int i = 0; i < opts.Count; i++)
-        {
-            var o = opts[i];
-            var pos = new Vector2(x0 + i % 3 * SelCellW, y + i / 3 * SelRowH);
-            var b = BattleTheme.MakeButton(pos, new Vector2(btnW, SelBtnH), BattleTheme.PanelDark, BattleTheme.Accent, 1, 8, textured: true);
-            b.Text = o.Label; b.AddThemeFontSizeOverride("font_size", 20); b.ClipText = true;
-            b.TooltipText = o.Tip;
-            b.Pressed += () => { set(o.Key); repaint(); };
-            host.AddChild(b);
-            btns[i] = b;
-
-            if (editFor?.Invoke(i) is { } editAct)
-            {
-                // Tuck the chip into the name plate's transparent right gutter; visually this leaves a compact
-                // gap without covering the painted surface, and the edit chip remains fully clickable.
-                var edit = BattleTheme.MakeButton(new Vector2(pos.X + btnW - 6, pos.Y + 2), new Vector2(44, 48), BattleTheme.PanelDark, BattleTheme.Accent, 1, 8);
-                if (BattleTheme.Icon("icon_edit", 30, null, new Vector2(7, 9)) is { } ic)
-                    edit.AddChild(ic); // quill-on-card glyph (batch 2)
-                else
-                {
-                    edit.Text = "改";
-                    edit.AddThemeFontSizeOverride("font_size", 18);
-                    edit.AddThemeColorOverride("font_color", BattleTheme.Accent);
-                }
-                edit.TooltipText = "编辑这套卡组";
-                edit.Pressed += editAct;
-                host.AddChild(edit);
-            }
-        }
-        repaint();
-        return shownH;
     }
 
     private static Control Positioned(Control c, Vector2 pos, Vector2 size)

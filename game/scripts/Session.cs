@@ -100,6 +100,11 @@ public static class Session
                 ClientVersion = GameConfig.ClientVersion, // docs/15 §2: soft update-gate signal
             };
 
+            // Arm the deck sync BEFORE dialing: the server pushes the account snapshot immediately after
+            // hello_ok, and that push can be handled on the receive thread before ConnectAsync's await even
+            // returns here. Resetting afterwards would let the session's only Profile slip past unsynced.
+            DeckSync.ResetForNewSession();
+
             try
             {
                 await client.ConnectAsync(new Uri(serverUrl), _hello);
@@ -221,6 +226,27 @@ public static class Session
             _ => null,
         });
 
+    /// <summary>Save a deck and await the server's verdict, correlated by Seq. Unlike the fire-and-forget
+    /// <see cref="DeckSavedOk"/>/<see cref="DeckSaveFailed"/> events — which can't say WHICH save they answer —
+    /// this returns the assigned id for this call, so <see cref="DeckSync"/> can push a whole library one deck
+    /// at a time and link each result back to the right local copy.</summary>
+    public static async Task<(string? Error, string? DeckId)> SaveDeckAsync(
+        string? deckId, string name, string leader, IReadOnlyList<string> cardIds)
+    {
+        string? assigned = null;
+        string? err = await RequestAsync(
+            new SaveDeck { DeckId = deckId, Name = name, Leader = leader, CardIds = cardIds },
+            (m, seq) => m switch
+            {
+                DeckSaved ds when ds.Seq == seq => Capture(ds.DeckId),
+                DeckError de when de.Seq == seq => de.Code,
+                _ => null,
+            });
+        return (err, assigned);
+
+        string Capture(string id) { assigned = id; return RequestOk; }
+    }
+
     // Send an auth request and await its correlated reply (AuthOk → null; ErrorMsg → its Code).
     private static Task<string?> AuthAsync(ClientMessage msg) =>
         RequestAsync(msg, static (m, seq) => m switch
@@ -296,6 +322,9 @@ public static class Session
                     Prefs.Nickname = p.Name;
                 }
                 ReconcileDeletedDecks(p);
+                // Deletes replay first so a tombstoned id is already on its way out before the sync considers
+                // adopting it (it skips tombstones either way — this just avoids a pointless round-trip).
+                DeckSync.OnProfile(p);
                 ProfileUpdated?.Invoke(p);
                 break;
             case QueueStatus q: QueueStatusReceived?.Invoke(q); break;
@@ -313,6 +342,9 @@ public static class Session
                     if (_hello is { } h) _hello = h with { GuestId = gid, Secret = sec };
                 }
                 BoundUsername = ok.Username;
+                // register binds this identity's decks to an account; login swaps in a different account's
+                // library entirely. Either way the deck sync has to run again against the new owner.
+                DeckSync.ResetForNewSession();
                 AuthOkReceived?.Invoke(ok);
                 break;
             case ErrorMsg e: Errored?.Invoke(e); break;

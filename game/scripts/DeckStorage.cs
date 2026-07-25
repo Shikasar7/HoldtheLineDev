@@ -78,9 +78,13 @@ public static class DeckStorage
     /// <paramref name="desired"/> is taken, its trailing digits are treated as a counter and bumped
     /// until free: 我的卡组1 → 我的卡组2 → 我的卡组3; 狂猎快攻 → 狂猎快攻2.
     /// </summary>
-    public static string UniqueName(string desired, string? excludeId = null)
+    public static string UniqueName(string desired, string? excludeId = null) =>
+        FreeName(desired, LoadAll().Where(d => d.Id != excludeId).Select(d => d.Name).ToHashSet());
+
+    /// <summary>The name-bumping half of <see cref="UniqueName"/>, against a caller-owned set — so a batch
+    /// import can reserve each name as it goes without re-reading the library per deck.</summary>
+    private static string FreeName(string desired, HashSet<string> taken)
     {
-        var taken = LoadAll().Where(d => d.Id != excludeId).Select(d => d.Name).ToHashSet();
         if (!taken.Contains(desired))
             return desired;
         string stem = desired.TrimEnd('0', '1', '2', '3', '4', '5', '6', '7', '8', '9');
@@ -96,6 +100,96 @@ public static class DeckStorage
         var all = LoadAll();
         all.RemoveAll(d => d.Id == id);
         Persist(all);
+    }
+
+    // ---------- adopting the account's decks (the pull half of deck sync) ----------
+
+    /// <summary>One deck as the account holds it — the shape <see cref="AdoptServerDecks"/> consumes, so this
+    /// file stays free of protocol types.</summary>
+    public readonly record struct ServerDeck(string ServerId, string Name, string Faction, string Leader, List<string> CardIds);
+
+    /// <summary>
+    /// Bring the account's decks into local storage. Until this existed the sync ran one way only: a local
+    /// save pushed up, but nothing ever came back down — so a reinstall (or any second device) left
+    /// <c>decks.json</c> empty while the server still held everything, and 卡组管理 / 人机对战 showed nothing.
+    ///
+    /// <para>Three rules keep it from doing damage. A server id already linked to a local deck is skipped, so
+    /// this is idempotent across every profile push. A tombstoned id is skipped, so a delete made offline
+    /// isn't resurrected by the next connect. And an unlinked local deck with identical contents ADOPTS the
+    /// server id instead of spawning a twin — that covers the deck a player built offline and then pushed,
+    /// plus logging into an account that already holds the same list.</para>
+    ///
+    /// <para>Returns how many decks were newly written (adoptions don't count — the player already had them).
+    /// One read and at most one write, so a 20-deck account costs two file operations, not forty.</para>
+    /// </summary>
+    public static int AdoptServerDecks(IEnumerable<ServerDeck> serverDecks)
+    {
+        var all = LoadAll();
+        var linked = all.Where(d => !string.IsNullOrEmpty(d.ServerId)).Select(d => d.ServerId!).ToHashSet();
+        var tombstoned = PendingServerDeletes().ToHashSet();
+        var taken = all.Select(d => d.Name).ToHashSet();
+        long now = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        int added = 0;
+        bool dirty = false;
+
+        foreach (var s in serverDecks)
+        {
+            if (linked.Contains(s.ServerId) || tombstoned.Contains(s.ServerId))
+                continue;
+
+            int twin = all.FindIndex(d => string.IsNullOrEmpty(d.ServerId) && SameContents(d, s));
+            if (twin >= 0)
+            {
+                all[twin] = all[twin] with { ServerId = s.ServerId };
+                linked.Add(s.ServerId);
+                dirty = true;
+                continue;
+            }
+
+            string name = FreeName(s.Name, taken);
+            taken.Add(name);
+            linked.Add(s.ServerId);
+            all.Add(new StoredDeck
+            {
+                Id = NewId(),
+                Name = name,
+                Faction = s.Faction,
+                Leader = s.Leader,
+                CardIds = s.CardIds,
+                ServerId = s.ServerId,
+                UpdatedAt = now,
+            });
+            added++;
+            dirty = true;
+        }
+
+        if (dirty) Persist(all);
+        return added;
+    }
+
+    /// <summary>Same leader and same 30 cards (order-insensitive — the server rebuilds the list from counts).</summary>
+    private static bool SameContents(StoredDeck local, ServerDeck s) =>
+        local.Leader == s.Leader
+        && local.CardIds.Count == s.CardIds.Count
+        && local.CardIds.OrderBy(x => x, System.StringComparer.Ordinal)
+            .SequenceEqual(s.CardIds.OrderBy(x => x, System.StringComparer.Ordinal), System.StringComparer.Ordinal);
+
+    /// <summary>
+    /// Local decks the account has no copy of — the push half of deck sync. Two cases, and the second is the
+    /// one that bites: a deck never pushed (<see cref="StoredDeck.ServerId"/> null), and a deck whose server
+    /// id the account no longer lists. The latter happens whenever a server copy disappears out from under us
+    /// (a deck store reset across a redeploy, a delete from another device), and it used to be invisible —
+    /// the local copy still carried an id, so nothing ever re-uploaded it and the deck was one wiped install
+    /// from gone. Both get pushed as NEW decks; the caller re-links whatever id comes back.
+    /// </summary>
+    /// <param name="accountDeckIds">Server ids the account currently lists.</param>
+    public static List<StoredDeck> NeedsPush(IReadOnlySet<string> accountDeckIds)
+    {
+        var tombstoned = PendingServerDeletes().ToHashSet();
+        return LoadAll()
+            .Where(d => string.IsNullOrEmpty(d.ServerId)
+                        || (!accountDeckIds.Contains(d.ServerId) && !tombstoned.Contains(d.ServerId)))
+            .ToList();
     }
 
     // ---------- pending server-side deletes (tombstones) ----------
