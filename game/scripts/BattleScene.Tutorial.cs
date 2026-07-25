@@ -22,6 +22,9 @@ public partial class BattleScene : ITutContext
 
     private Panel? _tutBanner;
     private RichTextLabel? _tutBannerLabel;
+    private Label? _tutStepLabel;
+    private Label? _tutTitleLabel;
+    private Label? _tutContinueLabel;
     private Button? _tutSkip;
     private ColorRect? _tutVeil;      // full-screen; blocks input + advances narration / opponent beats on click
     private System.Action? _tutContinue;
@@ -163,7 +166,7 @@ public partial class BattleScene : ITutContext
     private void TutNudge()
     {
         _sfx.Play("button");
-        Log("请跟随高亮提示操作。");
+        Log("薇兰蒂:看准誓火信标——只执行我刚才交代的动作。");
     }
 
     // ---------- tutorial UI ----------
@@ -171,7 +174,7 @@ public partial class BattleScene : ITutContext
     private void BuildTutorialUi()
     {
         // full-screen veil: captures input + advances narration / opponent beats on click.
-        _tutVeil = new ColorRect { Color = new Color(0, 0, 0, 0.10f), Visible = false };
+        _tutVeil = new ColorRect { Color = new Color(0.015f, 0.025f, 0.035f, 0.24f), Visible = false };
         _tutVeil.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         _tutVeil.MouseFilter = Control.MouseFilterEnum.Stop;
         _tutVeil.GuiInput += e =>
@@ -181,48 +184,164 @@ public partial class BattleScene : ITutContext
         };
         _overlayLayer.AddChild(_tutVeil);
 
-        // instruction banner — the right blank column (clear of the top HUD: enemy HP + turn/tide labels + board).
-        _tutBanner = new Panel { Position = new Vector2(1372, 176), Size = new Vector2(520, 344) };
+        // 薇兰蒂's field-command lectern. Her full-height portrait is deliberately kept in the dialogue surface
+        // instead of a detached avatar bubble: the tutorial should feel like a veteran is standing beside the
+        // board and reading the battle with you.
+        _tutBanner = new Panel
+        {
+            Position = new Vector2(1360, 164),
+            Size = new Vector2(532, 356),
+            ClipContents = true,
+        };
         _tutBanner.MouseFilter = Control.MouseFilterEnum.Ignore;
         var sb = new StyleBoxFlat
         {
-            BgColor = new Color(0.09f, 0.08f, 0.06f, 0.94f),
-            BorderColor = BattleTheme.AtkColor,
+            BgColor = Color.FromHtml("101820f7"),
+            BorderColor = Color.FromHtml("b99a58"),
             BorderWidthLeft = 2, BorderWidthTop = 2, BorderWidthRight = 2, BorderWidthBottom = 2,
-            CornerRadiusTopLeft = 10, CornerRadiusTopRight = 10, CornerRadiusBottomLeft = 10, CornerRadiusBottomRight = 10,
-            ContentMarginLeft = 34, ContentMarginRight = 34, ContentMarginTop = 16, ContentMarginBottom = 16,
+            CornerRadiusTopLeft = 5, CornerRadiusTopRight = 5, CornerRadiusBottomLeft = 5, CornerRadiusBottomRight = 5,
+            ShadowColor = new Color(0, 0, 0, 0.62f),
+            ShadowSize = 12,
+            ShadowOffset = new Vector2(0, 7),
         };
         _tutBanner.AddThemeStyleboxOverride("panel", sb);
         _overlayLayer.AddChild(_tutBanner);
+
+        // Steel-blue command rail: Iron Vow colour, not generic tutorial yellow.
+        var rail = new ColorRect
+        {
+            Color = Color.FromHtml("557fa8"),
+            Position = new Vector2(0, 0),
+            Size = new Vector2(7, 520),
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        _tutBanner.AddChild(rail);
+
+        // Same visual language as the leader HUD: a compact steel medallion with a head-and-shoulders crop.
+        // The tutorial speaker reads as a person addressing the player, never as a card being displayed.
+        if (BattleTheme.Tex("ui/button_plate_round.png") is { } roundPlate)
+            _tutBanner.AddChild(BattleTheme.Art(roundPlate, new Vector2(17, 78), new Vector2(140, 140)));
+        if (BattleTheme.Tex("cards/iv_saint_warden.png") is { } portrait)
+        {
+            var art = new TextureRect
+            {
+                Texture = portrait,
+                ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+                StretchMode = TextureRect.StretchModeEnum.Scale,
+                Position = new Vector2(31, 92),
+                Size = new Vector2(112, 112),
+                MouseFilter = Control.MouseFilterEnum.Ignore,
+                Material = new ShaderMaterial
+                {
+                    Shader = new Shader
+                    {
+                        Code = """
+                            shader_type canvas_item;
+
+                            void fragment() {
+                                vec2 from_center = UV - vec2(0.5);
+                                float circle_alpha = 1.0 - smoothstep(0.47, 0.495, length(from_center));
+
+                                // Head-and-shoulders square authored directly from the 2:3 card illustration.
+                                // Sampling here keeps UV local to this TextureRect, so the circular mask remains
+                                // mathematically round (AtlasTexture remaps UV and produced a flat lower edge).
+                                vec2 portrait_uv = vec2(0.19, 0.035) + UV * vec2(0.62, 0.413333);
+                                vec4 portrait = texture(TEXTURE, portrait_uv);
+                                portrait.a *= circle_alpha;
+                                COLOR = portrait;
+                            }
+                            """,
+                    },
+                },
+            };
+            _tutBanner.AddChild(art);
+        }
+
+        var sigil = BattleTheme.MakeLabel("铁誓圣壁", 15, Color.FromHtml("e3c476"), HorizontalAlignment.Center);
+        sigil.Position = new Vector2(25, 220);
+        sigil.Size = new Vector2(126, 24);
+        sigil.AddThemeFontOverride("font", BattleTheme.HeadingFont);
+        _tutBanner.AddChild(sigil);
+
+        var eyebrow = BattleTheme.MakeLabel("铁誓军团 · 战略建议", 15, Color.FromHtml("91a9bb"));
+        eyebrow.Position = new Vector2(180, 18);
+        eyebrow.Size = new Vector2(328, 24);
+        eyebrow.AddThemeFontOverride("font", BattleTheme.UiFontBold);
+        _tutBanner.AddChild(eyebrow);
+
+        var speaker = BattleTheme.MakeLabel("铁誓圣壁·薇兰蒂", 27, Color.FromHtml("edcf86"));
+        speaker.Position = new Vector2(180, 42);
+        speaker.Size = new Vector2(328, 38);
+        speaker.AddThemeFontOverride("font", BattleTheme.HeadingFont);
+        _tutBanner.AddChild(speaker);
+
+        var role = BattleTheme.MakeLabel("圣壁亲授  /  STRATEGIC COUNSEL", 13, Color.FromHtml("82909b"));
+        role.Position = new Vector2(180, 77);
+        role.Size = new Vector2(328, 22);
+        role.AddThemeFontOverride("font", BattleTheme.UiFontBold);
+        _tutBanner.AddChild(role);
+
+        var divider = new ColorRect
+        {
+            Color = new Color(0.72f, 0.60f, 0.34f, 0.48f),
+            Position = new Vector2(180, 106),
+            Size = new Vector2(328, 1),
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        _tutBanner.AddChild(divider);
+
+        _tutStepLabel = BattleTheme.MakeLabel("", 14, Color.FromHtml("91a9bb"));
+        _tutStepLabel.Position = new Vector2(180, 119);
+        _tutStepLabel.Size = new Vector2(328, 22);
+        _tutStepLabel.AddThemeFontOverride("font", BattleTheme.UiFontBold);
+        _tutBanner.AddChild(_tutStepLabel);
+
+        _tutTitleLabel = BattleTheme.MakeLabel("", 27, BattleTheme.TextMain);
+        _tutTitleLabel.Position = new Vector2(180, 143);
+        _tutTitleLabel.Size = new Vector2(328, 40);
+        _tutTitleLabel.AddThemeFontOverride("font", BattleTheme.HeadingFont);
+        _tutBanner.AddChild(_tutTitleLabel);
 
         _tutBannerLabel = new RichTextLabel
         {
             BbcodeEnabled = true, FitContent = true, ScrollActive = false,
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            Position = new Vector2(180, 188),
+            Size = new Vector2(328, 126),
         };
-        _tutBannerLabel.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         _tutBannerLabel.MouseFilter = Control.MouseFilterEnum.Ignore;
         _tutBannerLabel.AddThemeFontOverride("normal_font", BattleTheme.UiFont);
         _tutBannerLabel.AddThemeFontOverride("bold_font", BattleTheme.UiFontBold);
-        _tutBannerLabel.AddThemeFontSizeOverride("normal_font_size", 26);
-        _tutBannerLabel.AddThemeFontSizeOverride("bold_font_size", 26);
+        _tutBannerLabel.AddThemeFontSizeOverride("normal_font_size", 22);
+        _tutBannerLabel.AddThemeFontSizeOverride("bold_font_size", 22);
         _tutBannerLabel.AddThemeColorOverride("default_color", BattleTheme.TextMain);
+        _tutBannerLabel.AddThemeConstantOverride("line_separation", 6);
         _tutBanner.AddChild(_tutBannerLabel);
 
-        // skip affordance — under the banner in the right column; kept on top so it works during any step.
-        _tutSkip = new Button { Text = "跳过教学 ✕", Position = new Vector2(1658, 536), Size = new Vector2(234, 46) };
-        _tutSkip.AddThemeFontOverride("font", BattleTheme.UiFont);
-        _tutSkip.AddThemeFontSizeOverride("font_size", 18);
+        _tutContinueLabel = BattleTheme.MakeLabel("", 16, Color.FromHtml("e0b24a"), HorizontalAlignment.Right);
+        _tutContinueLabel.Position = new Vector2(180, 322);
+        _tutContinueLabel.Size = new Vector2(328, 24);
+        _tutContinueLabel.AddThemeFontOverride("font", BattleTheme.UiFontBold);
+        _tutBanner.AddChild(_tutContinueLabel);
+
+        // Deliberately quiet exit affordance: present but visually subordinate to the instruction.
+        _tutSkip = new Button { Text = "退出教学", Position = new Vector2(1730, 534), Size = new Vector2(162, 42) };
+        _tutSkip.AddThemeFontOverride("font", BattleTheme.UiFontBold);
+        _tutSkip.AddThemeFontSizeOverride("font_size", 16);
+        _tutSkip.AddThemeColorOverride("font_color", BattleTheme.TextDim);
+        _tutSkip.AddThemeColorOverride("font_hover_color", BattleTheme.TextMain);
         _tutSkip.Pressed += () => { _sfx.Play("button"); FinishTutorial(); };
         _overlayLayer.AddChild(_tutSkip);
     }
 
     private void SetTutBanner(TutStep step)
     {
-        // Title centered; body + hint left-aligned so multi-line text reads cleanly in the narrow side panel.
-        string title = step.Title.Length > 0 ? $"[center][b][color=#e0b24a]{step.Title}[/color][/b][/center]\n" : "";
-        string hint = step.Kind == TutStepKind.PlayerAction ? "" : "\n[color=#e0b24a]▶ 点击任意处继续[/color]";
-        _tutBannerLabel!.Text = $"{title}{step.Text}{hint}";
+        _tutStepLabel!.Text = $"战略建议  {(_tutIndex + 1):00} / {_tutSteps.Count:00}";
+        _tutTitleLabel!.Text = step.Title.Length > 0 ? step.Title : "战场建议";
+        _tutBannerLabel!.Text = step.Text;
+        _tutContinueLabel!.Text = step.Kind == TutStepKind.PlayerAction
+            ? "◆ 依照誓火信标行动"
+            : "▶ 点击战场，查看下一条建议";
         Callable.From(FitTutBannerHeight).CallDeferred(); // hug the text once it has laid out (next idle frame)
     }
 
@@ -230,9 +349,11 @@ public partial class BattleScene : ITutContext
     /// so short instructions don't leave a tall empty panel. Deferred so GetContentHeight sees the laid-out text.</summary>
     private void FitTutBannerHeight()
     {
-        if (_tutBanner is null || _tutBannerLabel is null || _tutSkip is null) return;
-        float h = Mathf.Clamp(_tutBannerLabel.GetContentHeight() + 40f, 108f, 480f);
+        if (_tutBanner is null || _tutBannerLabel is null || _tutContinueLabel is null || _tutSkip is null) return;
+        float h = Mathf.Clamp(_tutBannerLabel.GetContentHeight() + 248f, 356f, 510f);
         _tutBanner.Size = new Vector2(_tutBanner.Size.X, h);
+        _tutBannerLabel.Size = new Vector2(_tutBannerLabel.Size.X, h - 236f);
+        _tutContinueLabel.Position = new Vector2(_tutContinueLabel.Position.X, h - 34f);
         _tutSkip.Position = new Vector2(_tutSkip.Position.X, _tutBanner.Position.Y + h + 14f);
     }
 
@@ -283,14 +404,16 @@ public partial class BattleScene : ITutContext
     private void AddTutMarker(Control target)
     {
         if (!IsInstanceValid(target)) return;
-        const float pad = 6f;
+        const float pad = 7f;
         var ring = new Panel { MouseFilter = Control.MouseFilterEnum.Ignore };
         var sb = new StyleBoxFlat
         {
             BgColor = new Color(0, 0, 0, 0),
-            BorderColor = BattleTheme.AtkColor,
-            BorderWidthLeft = 4, BorderWidthTop = 4, BorderWidthRight = 4, BorderWidthBottom = 4,
-            CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8, CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8,
+            BorderColor = Color.FromHtml("e3bf68"),
+            BorderWidthLeft = 3, BorderWidthTop = 3, BorderWidthRight = 3, BorderWidthBottom = 3,
+            CornerRadiusTopLeft = 6, CornerRadiusTopRight = 6, CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
+            ShadowColor = new Color(0.34f, 0.58f, 0.78f, 0.72f),
+            ShadowSize = 7,
         };
         ring.AddThemeStyleboxOverride("panel", sb);
         _overlayLayer.AddChild(ring);
