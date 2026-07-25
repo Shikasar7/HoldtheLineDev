@@ -129,8 +129,8 @@ public static class Prefs
         set => Set(s => s with { WelcomeSeen = value });
     }
 
-    /// <summary>docs/23: set true the first time the player finishes the 新手教学关. Currently informational
-    /// (the tutorial stays replayable); reserved for a future "已完成教学" mark on the entry button.</summary>
+    /// <summary>docs/23: set true the first time the player finishes the 新手教学关. The tutorial stays
+    /// replayable; this only picks the 人机对战 entry button's wording (新手教学 vs 重玩新手教学).</summary>
     public static bool TutorialCompleted
     {
         get => Get(s => s.TutorialCompleted);
