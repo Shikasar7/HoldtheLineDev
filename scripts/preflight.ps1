@@ -144,6 +144,23 @@ if ($liveVj) {
             "先 git pull / 确认 csproj <Version> 是否忘了 bump"
     }
 
+    # docs/25:应用内更新的直链是否跟上了 latest。对不上不阻断 —— 安卓包天然晚于 Release 一步(§7),
+    # 客户端在这个窗口里会自动退回"跳转下载页";但发布收尾时忘了推这一步的话,手机端就一直是老路径。
+    # 匹配 /v<latest>/ 这一段而不是裸子串:裸子串下 "0.8.1" 会匹配 ".../v0.8.10/...",恰好在这个检查
+    # 唯一要抓的"公告改了一半"窗口里失效。latest 为空时 IndexOf("") 返回 0,同样会假绿,所以先挡掉。
+    $apkUrl = Field $liveVj 'android_apk_url'
+    if (-not $liveLatest) {
+        Bad "线上公告没有 latest —— 客户端无从判断该不该更新" "检查 /var/www/htl/version.json 是否被写坏"
+    } elseif (-not $apkUrl) {
+        Warn "线上公告没有 android_apk_url —— 手机端只能跳下载页(应用内更新不生效)" `
+             "出安卓包并写字段:pwsh scripts/build-android.ps1 -Upload,再 pwsh deploy/vps/deploy.ps1 -OnlyVersionJson"
+    } elseif ("$apkUrl".IndexOf("/v$liveLatest/", [StringComparison]::Ordinal) -lt 0) {
+        Warn "线上 android_apk_url 不含 latest=$liveLatest(还指着上一版的安卓包)" `
+             "出安卓包并写字段:pwsh scripts/build-android.ps1 -Upload,再 pwsh deploy/vps/deploy.ps1 -OnlyVersionJson"
+    } else {
+        Ok "安卓直链跟上了 latest($liveLatest)"
+    }
+
     # 本地那份 version.json 与线上是否同步(notes 改了没推,玩家看到的还是旧公告)
     if (Test-Path -LiteralPath $VersionJson) {
         $localVj = Get-Content -Raw -LiteralPath $VersionJson | ConvertFrom-Json

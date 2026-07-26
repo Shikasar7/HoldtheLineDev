@@ -28,8 +28,20 @@
 .PARAMETER UseDebugKey
   显式改用 debug keystore(仅本机调试侧载)。这样签的包与正式包互不覆盖,装之前要先卸载。
 
+.PARAMETER Upload
+  出包后 `gh release upload` 到 v<版本> 的 Release(需该 Release 已存在,即 release.ps1 -Publish 跑过)。
+  应用内更新(docs/25)靠 version.json 里的直链 + sha256 取包,而**直链只有传上去才成立** —— 所以上传
+  与写字段做在同一步,避免"公告说有、实际 404"。
+
+.PARAMETER SkipVersionJson
+  即使加了 -Upload 也不改 deploy/vps/version.json 的 android_apk_url / android_sha256 / android_size。
+  **不带 -Upload 时本来就不会改**——公告里的 sha256 描述的是线上那个能下载到的包,本地重打一次包就把它
+  覆盖掉的话,下次推公告会把对不上的哈希发给所有玩家(客户端下满 300 MB 后校验失败)。
+  写完记得推:pwsh deploy/vps/deploy.ps1 -OnlyVersionJson
+
 .EXAMPLE
-  pwsh scripts/build-android.ps1              # 正式签名的 release 包
+  pwsh scripts/build-android.ps1              # 只出包(不上传、不动公告)
+  pwsh scripts/build-android.ps1 -Upload      # 出包 + 传 Release + 写 version.json 字段(发布流程用这个)
   pwsh scripts/build-android.ps1 -UseDebugKey # 本机调试包
 #>
 [CmdletBinding()]
@@ -39,7 +51,9 @@ param(
     [string]$Keystore = $(if ($env:HTL_KEYSTORE) { $env:HTL_KEYSTORE } else { Join-Path $env:USERPROFILE 'AndroidTooling\HoldTheLine-release.jks' }),
     [string]$KeystoreAlias = $(if ($env:HTL_KEYSTORE_ALIAS) { $env:HTL_KEYSTORE_ALIAS } else { 'holdtheline' }),
     [switch]$UseDebugKey,
-    [switch]$DebugBuild   # 用 --export-debug 兜底(-Debug 是 PowerShell 保留公共参数,勿用)
+    [switch]$DebugBuild,  # 用 --export-debug 兜底(-Debug 是 PowerShell 保留公共参数,勿用)
+    [switch]$Upload,
+    [switch]$SkipVersionJson
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -158,4 +172,48 @@ if ($ec -ne 0 -or -not (Test-Path -LiteralPath $Apk)) {
     throw "导出失败(ExitCode=$ec)。日志:$Log"
 }
 Move-Item -Force -LiteralPath $Apk -Destination $Final
-Info ("完成 → $Final (" + [math]::Round((Get-Item $Final).Length / 1MB, 1) + " MB)")
+$FinalItem = Get-Item $Final
+Info ("完成 → $Final (" + [math]::Round($FinalItem.Length / 1MB, 1) + " MB)")
+
+# ④ docs/25:应用内更新的三件套 —— 直链 + sha256 + 体积。
+#    sha256 是客户端唯一能自证"下到的就是我发的那一份"的东西(APK 走 GitHub CDN,不经我们的服务器),
+#    所以它必须和真正上传的那个文件同源 —— 因此在这里算、在这里写,而不是发布时另找一份文件重算。
+$Sha = (Get-FileHash -Algorithm SHA256 -LiteralPath $Final).Hash.ToLower()
+$ApkUrl = "https://github.com/Shikasar7/HoldTheLine/releases/download/v$Version/$([System.IO.Path]::GetFileName($Final))"
+Info "sha256 $Sha"
+
+if ($Upload) {
+    if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { throw "缺少 gh —— 无法上传(去掉 -Upload 可只出包)" }
+    Info "上传到 Release v$Version …"
+    gh release upload "v$Version" $Final --repo Shikasar7/HoldTheLine --clobber
+    if ($LASTEXITCODE -ne 0) { throw "gh release upload 失败(Release v$Version 是否已存在?先跑 release.ps1 -Publish)" }
+    Info "已挂到 Release v$Version"
+}
+
+if (-not $Upload) {
+    # 只出包不上传时**绝不动 version.json**:那份公告描述的是"线上那个能下载到的包"。发布后为调试重打一次包
+    # 就把 sha256 改掉的话,下一次推公告(哪怕只是改 notes)会把一个与线上资产对不上的哈希发给所有玩家 ——
+    # 他们会下满 300 MB 再被校验拒掉。要写字段就连同上传一起做:-Upload。
+    Warn "未加 -Upload:已跳过 version.json 的安卓字段(公告仍描述线上那一版,不会被本地包覆盖)。"
+    Warn "要发布这个包:pwsh scripts/build-android.ps1 -Upload"
+} elseif ($SkipVersionJson) {
+    Warn "未写 version.json 的安卓字段(-SkipVersionJson)—— 手机端本版只能走「跳转下载页」。"
+} else {
+    $VersionJson = Join-Path $Root 'deploy\vps\version.json'
+    if (-not (Test-Path -LiteralPath $VersionJson)) {
+        Warn "找不到 $VersionJson,跳过安卓字段写入。"
+    } else {
+        $vj = Get-Content -Raw -LiteralPath $VersionJson | ConvertFrom-Json
+        foreach ($kv in @{ android_apk_url = $ApkUrl; android_sha256 = $Sha; android_size = $FinalItem.Length }.GetEnumerator()) {
+            if ($vj.PSObject.Properties[$kv.Key]) { $vj.($kv.Key) = $kv.Value }
+            else { $vj | Add-Member -NotePropertyName $kv.Key -NotePropertyValue $kv.Value }
+        }
+        # 无 BOM UTF-8:WinPS 5.1 的 Set-Content -Encoding utf8 会加 BOM,污染这份纯 JSON
+        [System.IO.File]::WriteAllText($VersionJson, ($vj | ConvertTo-Json -Depth 5), (New-Object System.Text.UTF8Encoding($false)))
+        Info "已写入 version.json 的 android_apk_url / android_sha256 / android_size"
+        if ("$($vj.latest)" -ne $Version) {
+            Warn "注意:version.json 的 latest=$($vj.latest) 与本包 v$Version 不一致 —— 客户端只在两者相同时才走应用内更新。"
+        }
+        Warn "最后一步 —— 推公告(手机端要靠它拿到直链):  pwsh deploy/vps/deploy.ps1 -OnlyVersionJson"
+    }
+}

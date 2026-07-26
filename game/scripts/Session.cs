@@ -355,10 +355,19 @@ public static class Session
                     GameConfig.Nickname = p.Name;
                     Prefs.Nickname = p.Name;
                 }
-                ReconcileDeletedDecks(p);
-                // Deletes replay first so a tombstoned id is already on its way out before the sync considers
-                // adopting it (it skips tombstones either way — this just avoids a pointless round-trip).
-                DeckSync.OnProfile(p);
+                // NOT on the identity-less rescue socket: the server answers an empty hello by minting a
+                // throwaway guest id (ClientConnection) and pushing ITS profile, so syncing here would upload
+                // the whole local library to an account nobody owns and stamp every local deck with a ServerId
+                // pointing at it — decks that then look "already synced" while the real account has none of
+                // them. Login re-pushes a profile right after AuthOk (which clears IsAnonymous first, same
+                // ordered receive path), so the real sync still runs the moment this device has an identity.
+                if (!IsAnonymous)
+                {
+                    ReconcileDeletedDecks(p);
+                    // Deletes replay first so a tombstoned id is already on its way out before the sync considers
+                    // adopting it (it skips tombstones either way — this just avoids a pointless round-trip).
+                    DeckSync.OnProfile(p);
+                }
                 ProfileUpdated?.Invoke(p);
                 break;
             case QueueStatus q: QueueStatusReceived?.Invoke(q); break;

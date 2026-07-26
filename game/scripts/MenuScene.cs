@@ -99,8 +99,10 @@ public partial class MenuScene : Control
         GameData.TakeLoadErrors(); // drop stale records from earlier loads
         GameData.LoadCards();
         GameData.LoadLeaders();
-        GameData.LoadDecks();
-        var errors = GameData.TakeLoadErrors();
+        var decks = GameData.LoadDecks();
+        // Load faults and table drift are two different defects, but one dialog is the right surface: both
+        // mean "the content you'd see is not the content that shipped", and both want the same fix.
+        var errors = GameData.TakeLoadErrors().Concat(PreconTableDrift(decks)).ToList();
         if (errors.Count == 0)
             return;
 
@@ -112,6 +114,24 @@ public partial class MenuScene : Control
         };
         AddChild(dialog);
         dialog.PopupCentered();
+    }
+
+    /// <summary>Catch precon tables drifting from the data directory. <see cref="DeckOptions"/> (this file)
+    /// and <c>AiDeckPool.Pool</c> are hand-written lists in the game project, so a deck added under
+    /// <c>data/decks</c> passes every Rules test — those discover decks from the directory — yet silently
+    /// never shows up in the pickers or as a random opponent. This is the only place both sides are visible
+    /// at once, so it is where the mismatch gets named.</summary>
+    private static List<string> PreconTableDrift(IReadOnlyList<HoldTheLine.Rules.Cards.DeckList> decks)
+    {
+        var problems = new List<string>();
+        var onDisk = decks.Select(d => d.Id).ToHashSet(System.StringComparer.Ordinal);
+        var listed = DeckOptions.Select(o => o.Id).ToHashSet(System.StringComparer.Ordinal);
+
+        foreach (var id in onDisk.Except(listed).OrderBy(s => s, System.StringComparer.Ordinal))
+            problems.Add($"预组 {id}:数据目录里有,但 DeckOptions 没列(选择器/人机里看不到)");
+        foreach (var id in listed.Except(onDisk).OrderBy(s => s, System.StringComparer.Ordinal))
+            problems.Add($"预组 {id}:DeckOptions 列了,但数据目录里没有(选到就会开局失败)");
+        return problems;
     }
 
     /// <summary>The persistent (initially hidden) update banner. Added here — before any overlay — so
@@ -159,6 +179,8 @@ public partial class MenuScene : Control
         if (svc.InstallForm == UpdateService.Form.Velopack)
             _ = svc.CheckAndDownloadAsync();
         else
+            // Android included: only ASK the server here. Downloading ~300 MB is the player's call
+            // (docs/25 A3), so the Apk form starts its download from the panel, not from a menu entry.
             _ = CheckServerVersionAsync();
 
         RefreshUpdateBanner(); // reflect state the persistent autoload may already have reached
@@ -185,6 +207,9 @@ public partial class MenuScene : Control
         Color color = BattleTheme.PanelDark;
         System.Action? onClick = null;
 
+        // Each install form owns its whole branch — a form must never fall through to another form's copy
+        // (a Velopack install reaching the "前往下载页" hint would send a player with a working auto-updater
+        // off to fetch an installer by hand).
         if (svc.InstallForm == UpdateService.Form.Velopack)
         {
             switch (svc.State)
@@ -196,6 +221,32 @@ public partial class MenuScene : Control
                     text = $"新版本 v{svc.LatestVersion} 已就绪 —— 点击重启更新";
                     color = BattleTheme.SeatColor0;
                     onClick = svc.ApplyAndRestart;
+                    break;
+            }
+        }
+        else if (svc.InstallForm == UpdateService.Form.Apk)
+        {
+            switch (svc.State)
+            {
+                case UpdateService.Phase.Downloading:
+                    // Clickable while downloading: ~300 MB with no delta is worth an exit (docs/25 A3).
+                    text = $"正在下载新版本…  {Mathf.RoundToInt(svc.DownloadProgress * 100)}%  ·  点击可取消";
+                    onClick = ShowCancelDownloadPanel;
+                    break;
+                case UpdateService.Phase.Ready:
+                    // The APK path hands off to the system installer instead of restarting in place.
+                    text = $"新版本 v{svc.LatestVersion} 已下载 —— 点击安装";
+                    color = BattleTheme.SeatColor0;
+                    onClick = InstallApkUpdate;
+                    break;
+                default:
+                    if (UpdateService.IsBehind(_serverVersion))
+                    {
+                        // Android never auto-downloads: the banner opens a panel that states the size first.
+                        text = $"发现新版本 v{_serverVersion!.Latest} —— 点击更新";
+                        color = BattleTheme.SeatColor0;
+                        onClick = ShowApkUpdatePanel;
+                    }
                     break;
             }
         }
@@ -225,6 +276,118 @@ public partial class MenuScene : Control
         _updateChangedHandler = null;
     }
 
+    // ---------- Android in-app update (docs/25) ----------
+
+    /// <summary>Android update gate: state the download size BEFORE spending the player's data. Sideloaded
+    /// APKs have no delta — every update is the whole ~300 MB package — so this is not a formality.</summary>
+    private void ShowApkUpdatePanel()
+    {
+        var svc = UpdateService.Instance;
+        if (svc is null) return;
+        var info = _serverVersion;
+
+        var p = NewPanel();
+        PanelLabel(p, "发 现 新 版 本", 210, 56, BattleTheme.Accent);
+        PanelLabel(p, $"v{GameConfig.ClientVersion}  →  v{info?.Latest}", 300, 26, BattleTheme.TextDim);
+
+        if (AndroidUpdater.CanSelfUpdate(info))
+        {
+            PanelLabel(p, $"更新包 {SizeText(info!.AndroidSize)} · 建议在 Wi-Fi 下下载", 344, 22, BattleTheme.TextDim);
+            PanelLabel(p, "下载完成后由系统弹出安装确认", 380, 22, BattleTheme.TextDim);
+            p.AddChild(Btn("下载并安装", new Vector2(Cx, 548), new Vector2(600, 72), async () =>
+            {
+                // Close first: the banner is the progress surface (it survives scene overlays and repaints
+                // itself from UpdateService.Changed), so we don't need a second progress widget here.
+                CloseOverlay();
+                await svc.CheckAndDownloadAsync(force: true);
+                if (!GodotObject.IsInstanceValid(this)) return;
+                if (svc.State == UpdateService.Phase.Ready) InstallApkUpdate();
+                // Idle = the player cancelled it themselves; anything else is a real failure worth explaining.
+                else if (svc.State != UpdateService.Phase.Idle) ShowApkFailurePanel("下载或校验未通过");
+            }));
+            p.AddChild(Btn("前往下载页", new Vector2(Cx, 636), new Vector2(290, 60), () => svc.OpenDownloadPage(info)));
+            p.AddChild(Btn("稍后再说", new Vector2(Cx + 310, 636), new Vector2(290, 60), CloseOverlay));
+        }
+        else
+        {
+            // No usable apk fields in version.json yet (the normal window right after a release, docs/25 §7).
+            PanelLabel(p, "本次更新需要手动下载安装包", 344, 22, BattleTheme.TextDim);
+            p.AddChild(Btn("前往下载页", new Vector2(Cx, 548), new Vector2(600, 72), () => svc.OpenDownloadPage(info)));
+            p.AddChild(Btn("稍后再说", new Vector2(Cx, 636), new Vector2(600, 60), CloseOverlay));
+        }
+    }
+
+    /// <summary>Confirm before throwing away a download in progress — a mis-tap on the banner shouldn't cost
+    /// the player the ~300 MB they've already pulled (there is no resume).</summary>
+    private void ShowCancelDownloadPanel()
+    {
+        var svc = UpdateService.Instance;
+        if (svc is null || !svc.CanCancelDownload) return;
+
+        var p = NewPanel();
+        PanelLabel(p, "取 消 下 载 ?", 210, 56, BattleTheme.Accent);
+        PanelLabel(p, $"已下载 {Mathf.RoundToInt(svc.DownloadProgress * 100)}%", 300, 26, BattleTheme.TextDim);
+        PanelLabel(p, "取消后已下载的部分会丢弃,下次需要重新下载", 344, 22, BattleTheme.TextDim);
+        p.AddChild(Btn("继续下载", new Vector2(Cx, 548), new Vector2(600, 72), CloseOverlay));
+        p.AddChild(Btn("取消下载", new Vector2(Cx, 636), new Vector2(600, 60), () =>
+        {
+            svc.CancelDownload();
+            CloseOverlay();
+        }));
+    }
+
+    /// <summary>Hand the verified APK to the system installer, routing the two non-success outcomes to
+    /// panels that actually give the player somewhere to go (docs/25 A7).</summary>
+    private void InstallApkUpdate()
+    {
+        var svc = UpdateService.Instance;
+        if (svc is null) return;
+        switch (svc.ApplyUpdate())
+        {
+            case AndroidUpdater.InstallOutcome.Launched:
+                break; // system installer is in front now; nothing more for us to draw
+            case AndroidUpdater.InstallOutcome.NeedsPermission:
+                ShowInstallPermissionPanel();
+                break;
+            default:
+                ShowApkFailurePanel("安装未能启动");
+                break;
+        }
+    }
+
+    /// <summary>The per-app "install unknown apps" grant. We send the player to the settings page and let
+    /// them come back and press install again — ROMs return from that screen inconsistently, so polling for
+    /// the grant would be guesswork.</summary>
+    private void ShowInstallPermissionPanel()
+    {
+        var p = NewPanel();
+        PanelLabel(p, "需 要 安 装 权 限", 210, 56, BattleTheme.Accent);
+        PanelLabel(p, "安卓要求你先允许《守线》安装应用", 300, 26, BattleTheme.TextDim);
+        PanelLabel(p, "在设置里打开「允许安装未知应用」后返回本页", 344, 22, BattleTheme.TextDim);
+        p.AddChild(Btn("去设置", new Vector2(Cx, 548), new Vector2(600, 72), () =>
+        {
+            if (!AndroidUpdater.OpenUnknownSourcesSettings())
+                ShowApkFailurePanel("打不开系统设置页");
+        }));
+        p.AddChild(Btn("已授权,继续安装", new Vector2(Cx, 636), new Vector2(290, 60), InstallApkUpdate));
+        p.AddChild(Btn("返回", new Vector2(Cx + 310, 636), new Vector2(290, 60), CloseOverlay));
+    }
+
+    /// <summary>Every in-app update failure ends here, and every one of them keeps the old manual path open.</summary>
+    private void ShowApkFailurePanel(string reason)
+    {
+        var svc = UpdateService.Instance;
+        var p = NewPanel();
+        PanelLabel(p, "更 新 未 完 成", 210, 56, BattleTheme.DangerColor);
+        PanelLabel(p, reason, 300, 26, BattleTheme.TextDim);
+        PanelLabel(p, "可以改用下载页手动安装,进度不会丢失", 344, 22, BattleTheme.TextDim);
+        p.AddChild(Btn("前往下载页", new Vector2(Cx, 548), new Vector2(600, 72), () => svc?.OpenDownloadPage(_serverVersion)));
+        p.AddChild(Btn("返回菜单", new Vector2(Cx, 636), new Vector2(600, 60), CloseOverlay));
+    }
+
+    private static string SizeText(long? bytes) =>
+        bytes is > 0 ? $"{bytes.Value / 1024f / 1024f:0.#} MB" : "体积未知";
+
     private static bool IsUpdateCode(string? code) =>
         code is "client_outdated" or "version_mismatch" or "data_mismatch";
 
@@ -248,20 +411,40 @@ public partial class MenuScene : Control
         PanelLabel(p, $"当前版本 v{GameConfig.ClientVersion}", 344, 22, BattleTheme.TextDim);
         var status = PanelLabel(p, "", 456, 24, BattleTheme.Accent);
 
-        if (svc is { InstallForm: UpdateService.Form.Velopack })
+        // docs/25 A6: Android joins this branch. The one behavioural difference is what "apply" means —
+        // Velopack restarts into the new build, Android hands off to the system installer — plus a size
+        // line, since a phone update is the whole ~300 MB package with no delta.
+        bool apk = svc is { InstallForm: UpdateService.Form.Apk };
+        if (svc is { SelfUpdates: true } && (!apk || AndroidUpdater.CanSelfUpdate(_serverVersion)))
         {
+            if (apk) PanelLabel(p, $"更新包 {SizeText(_serverVersion?.AndroidSize)} · 建议在 Wi-Fi 下下载", 380, 22, BattleTheme.TextDim);
             var action = Btn("下载并更新", new Vector2(Cx, 548), new Vector2(600, 72), null!);
             action.Pressed += async () =>
             {
-                if (svc.State == UpdateService.Phase.Ready) { svc.ApplyAndRestart(); return; }
+                if (svc.State == UpdateService.Phase.Ready)
+                {
+                    if (apk) InstallApkUpdate(); else svc.ApplyAndRestart();
+                    return;
+                }
                 action.Disabled = true;
                 SetStatusDeferred(status, "正在下载新版本…");
                 // force: explicit player action — bypass the recheck cooldown; if a background download is
                 // already in flight this awaits THAT task, so the outcome below reflects reality.
                 await svc.CheckAndDownloadAsync(force: true);
                 bool ready = svc.State == UpdateService.Phase.Ready;
-                SetStatusDeferred(status, ready ? "下载完成,点击重启更新" : "下载失败,请稍后重试或前往下载页");
-                Callable.From(() => { action.Disabled = false; if (ready) action.Text = "重启更新"; }).CallDeferred();
+                SetStatusDeferred(status, ready
+                    ? (apk ? "下载完成,正在唤起安装" : "下载完成,点击重启更新")
+                    : svc.State == UpdateService.Phase.Idle
+                        ? "已取消下载"
+                        : "下载失败,请稍后重试或前往下载页");
+                Callable.From(() =>
+                {
+                    if (!GodotObject.IsInstanceValid(action)) return;
+                    action.Disabled = false;
+                    if (!ready) return;
+                    if (apk) InstallApkUpdate();      // the player already opted in; don't make them tap twice
+                    else action.Text = "重启更新";
+                }).CallDeferred();
             };
             p.AddChild(action);
             p.AddChild(Btn("前往下载页", new Vector2(Cx, 636), new Vector2(290, 60), () => svc.OpenDownloadPage(_serverVersion)));

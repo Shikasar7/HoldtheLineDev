@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 using Godot;
 using HoldTheLine.Net;
@@ -28,10 +29,12 @@ namespace HoldTheLine.Game;
 /// </summary>
 public partial class UpdateService : Node
 {
-    /// <summary>Which distribution the running copy came from (docs/15 §0). Decides update behaviour.</summary>
-    public enum Form { Velopack, Itch, Portable }
+    /// <summary>Which distribution the running copy came from (docs/15 §0, docs/25). Decides update behaviour.</summary>
+    public enum Form { Velopack, Itch, Portable, Apk }
 
-    /// <summary>The self-update state machine (Velopack form only). Non-Velopack forms stay <see cref="Unsupported"/>.</summary>
+    /// <summary>The self-update state machine (self-updating forms only; the rest stay <see cref="Unsupported"/>).
+    /// <see cref="Ready"/> means "downloaded and verified" — on Velopack the next step is a restart, on
+    /// <see cref="Form.Apk"/> it is handing the file to the system installer.</summary>
     public enum Phase { Idle, Checking, UpToDate, Downloading, Ready, Failed, Unsupported }
 
     public static UpdateService? Instance { get; private set; }
@@ -49,6 +52,31 @@ public partial class UpdateService : Node
     public string? LatestVersion { get; private set; }
     /// <summary>0..1 download progress while <see cref="Phase.Downloading"/>.</summary>
     public float DownloadProgress { get; private set; }
+
+    /// <summary>True for the forms that can update from inside the game, i.e. the ones whose UI shows
+    /// "下载并更新" instead of "前往下载页" (docs/25 A6).</summary>
+    public bool SelfUpdates => InstallForm is Form.Velopack or Form.Apk;
+
+    /// <summary>docs/25: the verified APK waiting to be installed (<see cref="Form.Apk"/>, <see cref="Phase.Ready"/>).</summary>
+    private string? _apkPath;
+
+    /// <summary>Cancels the running APK download (docs/25 A3). Held here rather than passed around so the
+    /// menu can stop a ~300 MB transfer the player no longer wants.</summary>
+    private CancellationTokenSource? _apkCts;
+
+    /// <summary>True while an APK download is running and can be called off.</summary>
+    public bool CanCancelDownload => InstallForm == Form.Apk && State == Phase.Downloading && _apkCts is not null;
+
+    /// <summary>Stop the running APK download. The partial file is discarded; the next attempt starts over
+    /// (there is no resume — GitHub asset ranges aren't something we rely on).</summary>
+    public void CancelDownload()
+    {
+        if (_apkCts is { } cts)
+        {
+            GD.Print("[Update] apk download cancel requested");
+            try { cts.Cancel(); } catch (ObjectDisposedException) { /* already finished */ }
+        }
+    }
 
     private UpdateManager? _mgr;
     private UpdateInfo? _pending;
@@ -90,10 +118,16 @@ public partial class UpdateService : Node
 
     private Form DetectForm()
     {
-        // docs/19 C2: mobile has no Velopack/itch install form — it always learns it's behind from the
-        // server's version.json and opens the APK download page. Skip the desktop-only Velopack probe.
+        // docs/19 C2 / docs/25: mobile has no Velopack/itch install form. Android can still self-update via
+        // the system installer (Form.Apk) when the runtime bridge is available; anything else (iOS, an
+        // Android build without the AndroidRuntime singleton) keeps the original "open the download page".
         if (OS.HasFeature("mobile"))
-            return Form.Portable;
+        {
+            if (!AndroidUpdater.Supported)
+                return Form.Portable;
+            AndroidUpdater.CleanupDownloads(); // a leftover APK is either installed already or untrusted
+            return Form.Apk;
+        }
 
         // A Velopack install can construct a working UpdateManager and reports IsInstalled. Construction is
         // cheap + offline (network only happens on CheckForUpdatesAsync), so it's safe to probe at boot.
@@ -134,9 +168,15 @@ public partial class UpdateService : Node
     /// possible). Safe to fire on every menu entry: a call while a check/download is in flight returns that
     /// SAME task (so awaiting reflects the real outcome), a downloaded update short-circuits, and completed
     /// checks are rate-limited by <see cref="RecheckCooldown"/> unless <paramref name="force"/> (an explicit
-    /// player action, e.g. the forced-update panel) bypasses it. Non-Velopack forms report Unsupported.</summary>
+    /// player action, e.g. the forced-update panel) bypasses it.
+    ///
+    /// <para><see cref="Form.Apk"/> is routed to its own path (docs/25): fetch the feed, then download and
+    /// verify the package. <see cref="Form.Itch"/> / <see cref="Form.Portable"/> — the forms with no
+    /// self-update channel — are the ones that report <see cref="Phase.Unsupported"/>.</para></summary>
     public Task CheckAndDownloadAsync(bool force = false)
     {
+        if (InstallForm == Form.Apk)
+            return CheckAndDownloadApkAsync();
         if (InstallForm != Form.Velopack || _mgr is null)
         {
             SetState(Phase.Unsupported);
@@ -186,12 +226,105 @@ public partial class UpdateService : Node
 
     /// <summary>Apply the downloaded update and relaunch. Update.exe swaps the (possibly in-use) files by
     /// renaming, sidestepping Windows file locks; this process exits from inside the call. No-op unless a
-    /// download is <see cref="Phase.Ready"/>.</summary>
+    /// download is <see cref="Phase.Ready"/>.
+    ///
+    /// <para>On <see cref="Form.Apk"/> this hands the verified file to the system installer and returns —
+    /// the player confirms there, and Android (not us) restarts the app once it lands. The name is kept so
+    /// the desktop call sites stay untouched; use <see cref="ApplyUpdate"/> when you need the outcome.</para></summary>
     public void ApplyAndRestart()
     {
+        if (InstallForm == Form.Apk) { ApplyUpdate(); return; }
         if (_mgr is null || _pending is null || State != Phase.Ready)
             return;
         _mgr.ApplyUpdatesAndRestart(_pending.TargetFullRelease);
+    }
+
+    /// <summary>docs/25 A5: hand the verified APK to the system installer. Returns what happened so the menu
+    /// can route "needs the install-unknown-apps grant" to the settings page instead of showing a dead end.</summary>
+    public AndroidUpdater.InstallOutcome ApplyUpdate()
+    {
+        if (InstallForm != Form.Apk || State != Phase.Ready || _apkPath is null)
+            return AndroidUpdater.InstallOutcome.Failed;
+
+        var outcome = AndroidUpdater.Install(_apkPath);
+        if (outcome == AndroidUpdater.InstallOutcome.Failed)
+        {
+            // The file is gone or didn't verify — drop back to "no update in hand" so the UI stops offering
+            // an install that can't work, and the player gets the download-page fallback instead.
+            _apkPath = null;
+            SetState(Phase.Failed);
+        }
+        return outcome;
+    }
+
+    // ---------- Android self-update (Form.Apk, docs/25) ----------
+
+    /// <summary>Fetch the feed if we don't have it, then download + verify the APK. Mirrors the Velopack path:
+    /// concurrent callers join the same task, a finished download short-circuits, and every failure lands in
+    /// <see cref="Phase.Failed"/> so the UI can fall back to the download page.</summary>
+    private Task CheckAndDownloadApkAsync()
+    {
+        if (_inflight is { IsCompleted: false } running)
+            return running;
+        if (State == Phase.Ready && _apkPath is not null)
+            return Task.CompletedTask;
+        return _inflight = ApkCoreAsync();
+    }
+
+    private async Task ApkCoreAsync()
+    {
+        SetState(Phase.Checking);
+        try
+        {
+            var info = await FetchServerVersionAsync(GameConfig.ServerUrl).ConfigureAwait(false) ?? LastServerVersion;
+            if (!IsBehind(info))
+            {
+                SetState(Phase.UpToDate);
+                return;
+            }
+            if (!AndroidUpdater.CanSelfUpdate(info))
+            {
+                // Feed has no android_apk_url/sha256 yet (normal right after a release, docs/25 §7) — the
+                // banner still says "有新版本", it just routes to the download page.
+                SetState(Phase.Unsupported);
+                return;
+            }
+
+            LatestVersion = info!.Latest;
+            DownloadProgress = 0f;
+
+            using var cts = new CancellationTokenSource();
+            _apkCts = cts;
+            try
+            {
+                SetState(Phase.Downloading);
+                var path = await AndroidUpdater.DownloadAsync(info, OnApkProgress, cts.Token).ConfigureAwait(false);
+                if (path is null)
+                {
+                    // A cancel is not a failure: leave the banner offering the update again rather than
+                    // showing "下载失败" for something the player asked for.
+                    SetState(cts.IsCancellationRequested ? Phase.Idle : Phase.Failed);
+                    return;
+                }
+                _apkPath = path;
+                SetState(Phase.Ready);
+            }
+            finally
+            {
+                _apkCts = null;
+            }
+        }
+        catch (Exception e)
+        {
+            GD.PushWarning($"[Update] apk update failed: {e.Message}");
+            SetState(Phase.Failed);
+        }
+    }
+
+    private void OnApkProgress(float fraction)
+    {
+        DownloadProgress = Math.Clamp(fraction, 0f, 1f);
+        RaiseChanged();
     }
 
     // ---------- server version.json ("you're behind" perception across all forms, docs/15 §0/§2) ----------
@@ -206,6 +339,13 @@ public partial class UpdateService : Node
         [JsonPropertyName("setup_url")] public string? SetupUrl { get; init; }
         [JsonPropertyName("itch_url")] public string? ItchUrl { get; init; }
         [JsonPropertyName("android_url")] public string? AndroidUrl { get; init; } // docs/19 C2: APK download page for mobile
+
+        // docs/25 A1: the in-app update path. All three are written by scripts/build-android.ps1 AFTER the
+        // Release exists, so a feed can legitimately advertise a new `latest` while these still point at the
+        // previous build — clients must treat "missing or stale" as "no in-app update", not as an error.
+        [JsonPropertyName("android_apk_url")] public string? AndroidApkUrl { get; init; }
+        [JsonPropertyName("android_sha256")] public string? AndroidSha256 { get; init; }
+        [JsonPropertyName("android_size")] public long? AndroidSize { get; init; }
     }
 
     /// <summary>The most recent successful <see cref="FetchServerVersionAsync"/> result, cached so a menu
