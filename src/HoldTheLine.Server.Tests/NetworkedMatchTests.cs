@@ -138,7 +138,13 @@ public class NetworkedMatchTests
         clientB.MessageReceived += m => { if (m is MatchEnded me) bEnded.TrySetResult(me.WinnerSeat); };
 
         int seatA = hostA.Seat;
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+        // This bound is a hang-breaker, not an assertion about speed: the test plays a WHOLE match over real
+        // websockets and has to survive a mid-game drop + reconnect, so its wall clock depends on how long two
+        // random-legal bots take to finish — which changed when the 铁壁/狂猎 precons were rewritten. At 90 s it
+        // tripped three times inside the release/deploy gate (docs/24 §7) while passing standalone every time,
+        // i.e. it was failing releases without ever catching a defect. Kept finite so a genuine deadlock still
+        // fails instead of hanging the suite.
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(240));
         var driverA = new NetworkBotDriver(hostA, NetworkBotDriver.RandomLegal(seed: 7));
         var driverB = new NetworkBotDriver(hostB, NetworkBotDriver.RandomLegal(seed: 8));
         var play = Task.WhenAll(driverA.RunAsync(cts.Token), driverB.RunAsync(cts.Token));
