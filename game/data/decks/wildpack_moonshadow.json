@@ -1,0 +1,70 @@
+[
+  {
+    "id": "wildpack_moonshadow",
+    "name": "月影",
+    "faction": "wildpack",
+    "leader": "leader_wp_saen",
+    "cards": [
+      {
+        "id": "wp_trail_sniffer",
+        "count": 2
+      },
+      {
+        "id": "wp_hunt_signal",
+        "count": 2
+      },
+      {
+        "id": "nl_forced_march",
+        "count": 2
+      },
+      {
+        "id": "wp_night_prowler",
+        "count": 2
+      },
+      {
+        "id": "wp_pounce",
+        "count": 1
+      },
+      {
+        "id": "nl_stealth",
+        "count": 2
+      },
+      {
+        "id": "wp_stalker",
+        "count": 3
+      },
+      {
+        "id": "wp_blood_tracker",
+        "count": 2
+      },
+      {
+        "id": "wp_ambusher",
+        "count": 3
+      },
+      {
+        "id": "wp_shadow_pouncer",
+        "count": 3
+      },
+      {
+        "id": "wp_dire_wolf",
+        "count": 2
+      },
+      {
+        "id": "wp_hunt_matron",
+        "count": 1
+      },
+      {
+        "id": "wp_ghost_of_wilds",
+        "count": 2
+      },
+      {
+        "id": "wp_rift_leaper",
+        "count": 2
+      },
+      {
+        "id": "wp_moon_huntress",
+        "count": 1
+      }
+    ]
+  }
+]

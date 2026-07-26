@@ -1,0 +1,66 @@
+[
+  {
+    "id": "iron_overline",
+    "name": "越线",
+    "faction": "iron_vow",
+    "leader": "leader_iv_valen",
+    "cards": [
+      {
+        "id": "iv_oath_squire",
+        "count": 4
+      },
+      {
+        "id": "iv_gate_ward",
+        "count": 1
+      },
+      {
+        "id": "iv_oath_prayer",
+        "count": 2
+      },
+      {
+        "id": "iv_shield_brother",
+        "count": 4
+      },
+      {
+        "id": "nl_quartermaster",
+        "count": 2
+      },
+      {
+        "id": "iv_line_sergeant",
+        "count": 3
+      },
+      {
+        "id": "iv_bulwark_smith",
+        "count": 2
+      },
+      {
+        "id": "iv_overline_execution",
+        "count": 2
+      },
+      {
+        "id": "iv_oath_avenger",
+        "count": 2
+      },
+      {
+        "id": "iv_rampart_hammer",
+        "count": 2
+      },
+      {
+        "id": "nl_standard_bearer",
+        "count": 2
+      },
+      {
+        "id": "iv_overline_judge",
+        "count": 2
+      },
+      {
+        "id": "nl_battering_ram",
+        "count": 1
+      },
+      {
+        "id": "nl_mercenary_king",
+        "count": 1
+      }
+    ]
+  }
+]

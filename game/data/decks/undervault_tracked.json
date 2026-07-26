@@ -1,0 +1,70 @@
+[
+  {
+    "id": "undervault_tracked",
+    "name": "履带",
+    "faction": "undervault",
+    "leader": "leader_uv_brom",
+    "cards": [
+      {
+        "id": "uv_spike_barrier",
+        "count": 3
+      },
+      {
+        "id": "uv_scattergunner",
+        "count": 4
+      },
+      {
+        "id": "uv_mod_tracked_chassis",
+        "count": 2
+      },
+      {
+        "id": "uv_mod_split_shell",
+        "count": 1
+      },
+      {
+        "id": "uv_mod_heavy_bore",
+        "count": 1
+      },
+      {
+        "id": "uv_emergency_repair",
+        "count": 2
+      },
+      {
+        "id": "uv_mod_concussion",
+        "count": 1
+      },
+      {
+        "id": "uv_deploy_sentries",
+        "count": 3
+      },
+      {
+        "id": "uv_gear_foreman",
+        "count": 2
+      },
+      {
+        "id": "uv_line_engineer",
+        "count": 2
+      },
+      {
+        "id": "nl_sharpshooter",
+        "count": 2
+      },
+      {
+        "id": "nl_shield_veteran",
+        "count": 2
+      },
+      {
+        "id": "nl_longbow_line",
+        "count": 2
+      },
+      {
+        "id": "uv_armored_hauler",
+        "count": 2
+      },
+      {
+        "id": "uv_ironclad",
+        "count": 1
+      }
+    ]
+  }
+]

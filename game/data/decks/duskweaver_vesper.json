@@ -10,23 +10,35 @@
         "count": 3
       },
       {
-        "id": "dw_cinder_moth",
-        "count": 1
-      },
-      {
-        "id": "dw_pyre_channeler",
+        "id": "dw_spark",
         "count": 3
       },
       {
-        "id": "dw_dusk_warden",
-        "count": 2
+        "id": "dw_flame_adept",
+        "count": 4
+      },
+      {
+        "id": "dw_flame_lash",
+        "count": 3
+      },
+      {
+        "id": "dw_searing_brand",
+        "count": 3
       },
       {
         "id": "dw_ember_seer",
         "count": 2
       },
       {
+        "id": "dw_conflagrate",
+        "count": 1
+      },
+      {
         "id": "dw_flame_caster",
+        "count": 2
+      },
+      {
+        "id": "dw_vesper_cantor",
         "count": 2
       },
       {
@@ -34,43 +46,19 @@
         "count": 2
       },
       {
-        "id": "dw_pyroclast",
-        "count": 2
-      },
-      {
-        "id": "dw_ash_phoenix",
+        "id": "dw_fire_curtain",
         "count": 1
-      },
-      {
-        "id": "dw_first_ritualist",
-        "count": 1
-      },
-      {
-        "id": "dw_spark",
-        "count": 3
-      },
-      {
-        "id": "dw_flame_lash",
-        "count": 2
-      },
-      {
-        "id": "dw_immolate",
-        "count": 2
       },
       {
         "id": "dw_vesper_blast",
         "count": 1
       },
       {
-        "id": "dw_fire_curtain",
-        "count": 1
+        "id": "dw_pyroclast",
+        "count": 2
       },
       {
-        "id": "dw_searing_brand",
-        "count": 1
-      },
-      {
-        "id": "dw_pyre_guard",
+        "id": "dw_first_ritualist",
         "count": 1
       }
     ]

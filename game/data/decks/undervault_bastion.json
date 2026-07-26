@@ -1,7 +1,7 @@
 [
   {
-    "id": "undervault_sunline",
-    "name": "贯日",
+    "id": "undervault_bastion",
+    "name": "磐炮",
     "faction": "undervault",
     "leader": "leader_uv_brom",
     "cards": [
@@ -10,19 +10,15 @@
         "count": 3
       },
       {
-        "id": "uv_gun_crew",
-        "count": 2
-      },
-      {
         "id": "uv_scattergunner",
-        "count": 3
+        "count": 4
       },
       {
-        "id": "uv_mod_heavy_bore",
+        "id": "uv_mod_siphon_shell",
         "count": 1
       },
       {
-        "id": "uv_mod_long_barrel",
+        "id": "uv_mod_heavy_bore",
         "count": 2
       },
       {
@@ -30,47 +26,43 @@
         "count": 2
       },
       {
-        "id": "uv_deploy_sentries",
+        "id": "uv_mod_anchor_platform",
         "count": 2
       },
       {
-        "id": "uv_gear_foreman",
+        "id": "uv_deploy_sentries",
         "count": 3
       },
       {
-        "id": "uv_mod_rifled_bore",
+        "id": "uv_repair_sapper",
         "count": 1
-      },
-      {
-        "id": "uv_line_engineer",
-        "count": 2
       },
       {
         "id": "uv_salvage_crew",
         "count": 2
       },
       {
-        "id": "uv_mod_failsafe_pod",
-        "count": 1
+        "id": "uv_line_engineer",
+        "count": 2
+      },
+      {
+        "id": "uv_gear_foreman",
+        "count": 2
       },
       {
         "id": "uv_armored_hauler",
         "count": 2
       },
       {
-        "id": "uv_mod_autoloader",
-        "count": 1
-      },
-      {
-        "id": "uv_mod_grand_cannon",
-        "count": 1
-      },
-      {
         "id": "uv_ironclad",
-        "count": 1
+        "count": 2
       },
       {
         "id": "uv_fortress_crawler",
+        "count": 1
+      },
+      {
+        "id": "uv_master_artificer",
         "count": 1
       }
     ]

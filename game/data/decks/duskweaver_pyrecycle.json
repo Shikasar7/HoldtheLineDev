@@ -1,0 +1,58 @@
+[
+  {
+    "id": "duskweaver_pyrecycle",
+    "name": "烬环",
+    "faction": "duskweaver",
+    "leader": "leader_dw_vela",
+    "cards": [
+      {
+        "id": "dw_ash_whelp",
+        "count": 4
+      },
+      {
+        "id": "dw_immolate",
+        "count": 3
+      },
+      {
+        "id": "dw_cinder_moth",
+        "count": 3
+      },
+      {
+        "id": "dw_scorch_zealot",
+        "count": 3
+      },
+      {
+        "id": "dw_choir_acolyte",
+        "count": 2
+      },
+      {
+        "id": "dw_rekindle",
+        "count": 3
+      },
+      {
+        "id": "dw_flame_lash",
+        "count": 2
+      },
+      {
+        "id": "dw_ashen_courier",
+        "count": 3
+      },
+      {
+        "id": "dw_pyre_guard",
+        "count": 2
+      },
+      {
+        "id": "dw_flare_summoner",
+        "count": 2
+      },
+      {
+        "id": "dw_ash_phoenix",
+        "count": 2
+      },
+      {
+        "id": "dw_dusk_matriarch",
+        "count": 1
+      }
+    ]
+  }
+]

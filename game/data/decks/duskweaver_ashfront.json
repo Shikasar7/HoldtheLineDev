@@ -1,0 +1,78 @@
+[
+  {
+    "id": "duskweaver_ashfront",
+    "name": "燎垣",
+    "faction": "duskweaver",
+    "leader": "leader_dw_vela",
+    "cards": [
+      {
+        "id": "dw_spark",
+        "count": 2
+      },
+      {
+        "id": "dw_searing_brand",
+        "count": 2
+      },
+      {
+        "id": "dw_flame_lash",
+        "count": 2
+      },
+      {
+        "id": "dw_ash_bind",
+        "count": 1
+      },
+      {
+        "id": "dw_pyre_channeler",
+        "count": 2
+      },
+      {
+        "id": "dw_flame_adept",
+        "count": 2
+      },
+      {
+        "id": "dw_dusk_warden",
+        "count": 4
+      },
+      {
+        "id": "dw_conflagrate",
+        "count": 1
+      },
+      {
+        "id": "dw_ember_trap",
+        "count": 1
+      },
+      {
+        "id": "dw_pyre_guard",
+        "count": 3
+      },
+      {
+        "id": "dw_fire_curtain",
+        "count": 1
+      },
+      {
+        "id": "dw_cinder_storm",
+        "count": 2
+      },
+      {
+        "id": "dw_molten_sword_priest",
+        "count": 2
+      },
+      {
+        "id": "dw_pyroclast",
+        "count": 1
+      },
+      {
+        "id": "dw_flare_summoner",
+        "count": 2
+      },
+      {
+        "id": "dw_ash_phoenix",
+        "count": 1
+      },
+      {
+        "id": "dw_inferno_behemoth",
+        "count": 1
+      }
+    ]
+  }
+]

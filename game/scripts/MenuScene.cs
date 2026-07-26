@@ -532,10 +532,19 @@ public partial class MenuScene : Control
     private static readonly (string Id, string Label, Color Color)[] DeckOptions =
     [
         // docs/22 批次D4: tints come from res://data/faction_catalog.tres via FactionTint (was inline hex).
+        // Three builds per faction (一防一压一异): the list is grouped by faction, in FactionOrderIds order.
         ("iron_wall", "铁壁 · 铁誓", FactionTint("iron_vow")),
+        ("iron_garrison", "拒线 · 铁誓", FactionTint("iron_vow")),
+        ("iron_overline", "越线 · 铁誓", FactionTint("iron_vow")),
         ("wildpack_hunt", "狂猎 · 游群", FactionTint("wildpack")),
+        ("wildpack_encircle", "合围 · 游群", FactionTint("wildpack")),
+        ("wildpack_moonshadow", "月影 · 游群", FactionTint("wildpack")),
         ("duskweaver_vesper", "晚祷 · 教团", FactionTint("duskweaver")),
+        ("duskweaver_pyrecycle", "烬环 · 教团", FactionTint("duskweaver")),
+        ("duskweaver_ashfront", "燎垣 · 教团", FactionTint("duskweaver")),
         ("undervault_sunline", "贯日 · 匠会", FactionTint("undervault")),
+        ("undervault_bastion", "磐炮 · 匠会", FactionTint("undervault")),
+        ("undervault_tracked", "履带 · 匠会", FactionTint("undervault")),
     ];
 
     /// <summary>Entry from the main menu: straight to the lobby if the session is up, else connect first.</summary>

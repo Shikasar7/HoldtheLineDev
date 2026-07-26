@@ -55,11 +55,28 @@ public class ContentTests
         Assert.Contains("faction", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>Every shipped precon, discovered from the data directory — a new deck file is covered the
+    /// moment it lands, and a deleted one can't leave a stale InlineData behind.</summary>
+    public static TheoryData<string> PreconIds()
+    {
+        var data = new TheoryData<string>();
+        foreach (var d in DeckLibrary.LoadFromDirectory(DecksDir))
+            data.Add(d.Id);
+        return data;
+    }
+
+    [Fact]
+    public void Precon_catalog_is_three_builds_per_faction()
+    {
+        var decks = DeckLibrary.LoadFromDirectory(DecksDir);
+        Assert.Equal(12, decks.Count);
+        foreach (var faction in new[] { "iron_vow", "wildpack", "duskweaver", "undervault" })
+            Assert.Equal(3, decks.Count(d => d.Faction == faction));
+        Assert.Equal(decks.Count, decks.Select(d => d.Id).Distinct(StringComparer.Ordinal).Count());
+    }
+
     [Theory]
-    [InlineData("iron_wall")]
-    [InlineData("wildpack_hunt")]
-    [InlineData("duskweaver_vesper")]
-    [InlineData("undervault_sunline")]
+    [MemberData(nameof(PreconIds))]
     public void Precon_decks_are_legal_and_playable(string deckId)
     {
         var db = Cards();

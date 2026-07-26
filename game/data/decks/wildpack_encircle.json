@@ -1,7 +1,7 @@
 [
   {
-    "id": "wildpack_hunt",
-    "name": "狂猎",
+    "id": "wildpack_encircle",
+    "name": "合围",
     "faction": "wildpack",
     "leader": "leader_wp_saen",
     "cards": [
@@ -10,51 +10,59 @@
         "count": 2
       },
       {
-        "id": "wp_trail_sniffer",
-        "count": 2
-      },
-      {
-        "id": "wp_hunt_signal",
-        "count": 2
-      },
-      {
-        "id": "wp_fang_rider",
-        "count": 3
-      },
-      {
         "id": "wp_flanker",
+        "count": 4
+      },
+      {
+        "id": "wp_wild_heart",
         "count": 2
       },
       {
-        "id": "wp_raider",
-        "count": 4
+        "id": "wp_encircle",
+        "count": 1
       },
       {
         "id": "wp_bone_gnawer",
         "count": 2
       },
       {
-        "id": "wp_blood_scent",
+        "id": "wp_raider",
+        "count": 3
+      },
+      {
+        "id": "wp_howler",
+        "count": 3
+      },
+      {
+        "id": "wp_pack_call",
         "count": 2
       },
       {
-        "id": "wp_dire_wolf",
-        "count": 3
+        "id": "wp_blood_scent",
+        "count": 1
+      },
+      {
+        "id": "wp_den_mother",
+        "count": 2
       },
       {
         "id": "wp_hunt_matron",
         "count": 2
       },
       {
-        "id": "wp_throat_ripper",
+        "id": "wp_dire_wolf",
+        "count": 1
+      },
+      {
+        "id": "wp_shadow_pouncer",
+        "count": 1
+      },
+      {
+        "id": "wp_pack_alpha",
         "count": 2
       },
       {
         "id": "wp_alpha_matriarch",
-        "count": 2
-      },
-      {
-        "id": "wp_windrunner",
         "count": 1
       },
       {
