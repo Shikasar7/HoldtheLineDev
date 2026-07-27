@@ -15,7 +15,7 @@
       },
       {
         "id": "uv_scattergunner",
-        "count": 3
+        "count": 1
       },
       {
         "id": "uv_mod_heavy_bore",
@@ -43,7 +43,7 @@
       },
       {
         "id": "uv_line_engineer",
-        "count": 2
+        "count": 1
       },
       {
         "id": "uv_salvage_crew",
@@ -71,6 +71,14 @@
       },
       {
         "id": "uv_fortress_crawler",
+        "count": 1
+      },
+      {
+        "id": "uv_long_gunner",
+        "count": 2
+      },
+      {
+        "id": "uv_rangefinder",
         "count": 1
       }
     ]

@@ -7,7 +7,7 @@
     "cards": [
       {
         "id": "uv_spike_barrier",
-        "count": 3
+        "count": 1
       },
       {
         "id": "uv_scattergunner",
@@ -34,10 +34,6 @@
         "count": 3
       },
       {
-        "id": "uv_repair_sapper",
-        "count": 1
-      },
-      {
         "id": "uv_salvage_crew",
         "count": 2
       },
@@ -51,11 +47,11 @@
       },
       {
         "id": "uv_armored_hauler",
-        "count": 2
+        "count": 1
       },
       {
         "id": "uv_ironclad",
-        "count": 2
+        "count": 1
       },
       {
         "id": "uv_fortress_crawler",
@@ -64,6 +60,18 @@
       {
         "id": "uv_master_artificer",
         "count": 1
+      },
+      {
+        "id": "uv_steam_medic",
+        "count": 1
+      },
+      {
+        "id": "uv_forge_foreman",
+        "count": 2
+      },
+      {
+        "id": "nl_water_bearer",
+        "count": 2
       }
     ]
   }

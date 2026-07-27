@@ -125,6 +125,12 @@ KeywordName = "KindleImmune"
 DisplayName = "免疫薪炎"
 Description = "免疫薪炎:免疫薪炎(spell.kindle)伤害;但被薪炎命中仍会加速自身成长。"
 
+[sub_resource type="Resource" id="Resource_kindleaegis"]
+script = ExtResource("1_kdef")
+KeywordName = "KindleAegis"
+DisplayName = "不焚"
+Description = "不焚:你的所有友方随从免疫薪炎(spell.kindle)伤害,不限距离、含自身;被薪炎命中仍会加速成长。"
+
 [sub_resource type="Resource" id="Resource_spellward"]
 script = ExtResource("1_kdef")
 KeywordName = "SpellWard"
@@ -133,4 +139,4 @@ Description = "法术护体:抵挡下一次敌方指令/战吼效果(伤害归�
 
 [resource]
 script = ExtResource("2_kcat")
-Keywords = Array[ExtResource("1_kdef")]([SubResource("Resource_charge"), SubResource("Resource_assault"), SubResource("Resource_swift"), SubResource("Resource_range"), SubResource("Resource_taunt"), SubResource("Resource_holdfast"), SubResource("Resource_trample"), SubResource("Resource_cheapshot"), SubResource("Resource_shield"), SubResource("Resource_garrison"), SubResource("Resource_leap"), SubResource("Resource_packtactics"), SubResource("Resource_hidden"), SubResource("Resource_emplacement"), SubResource("Resource_pierce"), SubResource("Resource_blessing"), SubResource("Resource_guardian"), SubResource("Resource_rooted"), SubResource("Resource_moltensword"), SubResource("Resource_kindleimmune"), SubResource("Resource_spellward")])
+Keywords = Array[ExtResource("1_kdef")]([SubResource("Resource_charge"), SubResource("Resource_assault"), SubResource("Resource_swift"), SubResource("Resource_range"), SubResource("Resource_taunt"), SubResource("Resource_holdfast"), SubResource("Resource_trample"), SubResource("Resource_cheapshot"), SubResource("Resource_shield"), SubResource("Resource_garrison"), SubResource("Resource_leap"), SubResource("Resource_packtactics"), SubResource("Resource_hidden"), SubResource("Resource_emplacement"), SubResource("Resource_pierce"), SubResource("Resource_blessing"), SubResource("Resource_guardian"), SubResource("Resource_rooted"), SubResource("Resource_moltensword"), SubResource("Resource_kindleimmune"), SubResource("Resource_kindleaegis"), SubResource("Resource_spellward")])

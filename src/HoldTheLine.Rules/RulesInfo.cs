@@ -95,8 +95,15 @@ public static class RulesInfo
     /// so the bonus survives leaving the home row and never double-applies on return; new additive event
     /// garrison_locked. Two new 铁誓 orders — 以身为盾 (2费, 授予守护) and 反击号角 (2费, lock_garrison over all_allies);
     /// pool 172 → 174, iron_vow 30 → 32. Card tuning: 墙垛弩卫 4费2/5 → 1费1/2 (射程2 不变), 门岗新丁 0/3 → 0/4,
-    /// 持盾卫 嘲讽 → 持盾. DataHash changes — client + server must ship this same data + version.</remarks>
-    public const string Version = "0.14.0";
+    /// 持盾卫 嘲讽 → 持盾. DataHash changes — client + server must ship this same data + version.
+    /// 0.15.0 (2026-07-27): docs/26 女性角色卡 20 张 (每阵营 4, 无新传说), pool 174 → 194. Three semantic changes:
+    /// new keyword 不焚/KindleAegis (a SIDE-WIDE 薪炎 immunity aura, self-inclusive and rangeless — DamageMath
+    /// checks the owner's board, not adjacency); new trigger kindle_damage_dealt, fired once per 薪炎 damage
+    /// EFFECT a seat resolves (not per unit hit) after the death sweep, with a re-entrancy latch; and boost_range
+    /// now grants min(printed range (melee = 1) + N, 4) instead of "current range + N", so it cannot stack with
+    /// itself and cannot push a 炮台 past its 总射程上限. Old command logs replay unchanged (no serialized shape
+    /// moved). DataHash changes — client + server + version.json must ship this same data.</remarks>
+    public const string Version = "0.15.0";
 
     /// <summary>压力潮汐 start round, forwarded from the (internal) <see cref="Engine.TurnFlow"/> so the client
     /// HUD can show the tide countdown (docs/17) without hardcoding 8 and drifting from the rule. Read-only

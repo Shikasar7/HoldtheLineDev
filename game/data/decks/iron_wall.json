@@ -15,7 +15,7 @@
       },
       {
         "id": "iv_shieldbearer",
-        "count": 3
+        "count": 1
       },
       {
         "id": "iv_shield_wall",
@@ -54,12 +54,8 @@
         "count": 2
       },
       {
-        "id": "iv_gate_titan",
-        "count": 1
-      },
-      {
         "id": "iv_bulwark",
-        "count": 2
+        "count": 1
       },
       {
         "id": "iv_aegis_paragon",
@@ -68,6 +64,14 @@
       {
         "id": "iv_saint_warden",
         "count": 1
+      },
+      {
+        "id": "iv_shield_forger",
+        "count": 2
+      },
+      {
+        "id": "iv_censer_bearer",
+        "count": 2
       }
     ]
   }

@@ -488,5 +488,97 @@
 	],
 	"text": "偷袭,疾行 2。移动后:本随从 +2/+0(每回合最多 2 次)。月影之下,一击封喉。",
 	"art_prompt": "a moonlit huntress-wolf spirit with silver-tipped fur, leaping under a full moon, deadly grace"
+  },
+  {
+    "id": "wp_bone_piper",
+    "name": "催蹄骨笛手",
+    "faction": "wildpack",
+    "type": "unit",
+    "rarity": "common",
+    "cost": 2,
+    "atk": 2,
+    "hp": 2,
+    "effects": [
+      {
+        "trigger": "battlecry",
+        "action": "move_bonus",
+        "target": "adjacent_allies",
+        "amount": 1
+      }
+    ],
+    "text": "战吼:相邻友方随从本回合移动力 +1。",
+    "art_prompt": "a tall, lean and charismatic young adult wildpack piper woman with a fierce beautiful non-specific fantasy face, blowing a long carved bone flute while striding forward, ochre war-paint, layered hide, feather and tooth charms whipping around untamed braids in kicked-up dust"
+  },
+  {
+    "id": "wp_whelp_keeper",
+    "name": "负崽人",
+    "faction": "wildpack",
+    "type": "unit",
+    "rarity": "common",
+    "cost": 3,
+    "atk": 2,
+    "hp": 3,
+    "effects": [
+      {
+        "trigger": "deathrattle",
+        "action": "summon",
+        "amount": 1,
+        "summon_card_id": "wp_pup"
+      }
+    ],
+    "text": "亡语:在你的底线行召唤一只 1/2 掠群幼狼。",
+    "art_prompt": "a charismatic young adult orc woman whelp-keeper with an attractive expressive face, athletic build, neat braids and practical hide-and-fur gear, an empty folded-pelt sling across her chest, one small wolf pup far behind as a softly blurred silhouette fully separated from her outline"
+  },
+  {
+    "id": "wp_scar_hunter",
+    "name": "卷尘奔猎者",
+    "faction": "wildpack",
+    "type": "unit",
+    "rarity": "rare",
+    "cost": 4,
+    "atk": 3,
+    "hp": 3,
+    "keywords": [
+      {
+        "keyword": "pack_tactics"
+      }
+    ],
+    "effects": [
+      {
+        "trigger": "self_moved",
+        "action": "buff",
+        "target": "self",
+        "atk": 1
+      }
+    ],
+    "text": "围猎。移动后:本随从 +1/+0(每回合最多 2 次)。",
+    "art_prompt": "a striking tall athletic young adult Wildpack huntress inspired by the approved Bone Piper: fierce beautiful face, wind-tossed black hair with a few feather and bone ornaments, bold ochre war-paint, layered hides and fur, mid-stride with twin bone-handled hatchets, one small battle scar across her cheek and dust exploding from her heels"
+  },
+  {
+    "id": "wp_horn_chieftain",
+    "name": "苍角老酋",
+    "faction": "wildpack",
+    "type": "unit",
+    "rarity": "epic",
+    "cost": 6,
+    "atk": 4,
+    "hp": 5,
+    "effects": [
+      {
+        "trigger": "battlecry",
+        "action": "grant_keyword",
+        "target": "all_allies",
+        "keyword": "pack_tactics",
+        "duration": "end_of_turn"
+      },
+      {
+        "trigger": "battlecry",
+        "action": "move_bonus",
+        "target": "all_allies",
+        "amount": 1
+      }
+    ],
+    "text": "战吼:你的所有友方随从获得围猎(直到回合结束),且本回合移动力 +1。",
+    "art_prompt": "a charismatic vigorous mature Wildpack matriarch inspired by the approved Bone Piper: handsome beautiful face, tall fit powerful build, wind-tossed black hair with restrained silver streaks, bold ochre war-paint, layered hide, fur, feathers and totem bone, raising a great curved war-horn while commanding the pack forward"
   }
 ]

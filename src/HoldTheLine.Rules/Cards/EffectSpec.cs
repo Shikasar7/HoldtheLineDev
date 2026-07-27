@@ -89,7 +89,15 @@ public sealed record EffectSpec
     public static readonly IReadOnlySet<string> KnownTriggers = new HashSet<string>
         { "battlecry", "deathrattle", "play", "leader_skill", "ally_order_played", "self_moved", "channel", "ally_died_your_turn",
           // docs/21 §3.1: 薪火回响 (门德) — a passive marker read when you play your first 薪炎 damage order each turn.
-          "first_kindle_order_each_turn" };
+          "first_kindle_order_each_turn",
+          // docs/26 §4: 不焚主祭 — fires once per 薪炎 (spell.*) damage EFFECT your side resolves, not per unit hit.
+          "kindle_damage_dealt" };
+
+    /// <summary>Targets a <c>kindle_damage_dealt</c> effect may use (docs/26 §4). Like the other reactive
+    /// triggers it fires with no player prompt, so its targeting must be implicit — but unlike
+    /// <see cref="OnCastTargets"/> it may sweep the whole friendly board (不焚主祭's 全体友军 +0/+1).</summary>
+    public static readonly IReadOnlySet<string> KindleReactionTargets = new HashSet<string>
+        { "none", "self", "adjacent_allies", "adjacent_enemies", "all_allies", "all_enemies" };
 
     /// <summary>The action vocabulary, derived from the effect-action registry (docs/22 D1): one sealed
     /// handler class per action under Engine/Actions, registered in <see cref="Engine.Actions.EffectActionRegistry"/>.

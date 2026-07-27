@@ -155,6 +155,20 @@ public sealed class CardDatabase
             if (spec.Trigger == "first_kindle_order_each_turn" && (card.Type != CardType.Unit || spec.Action != "echo_order"))
                 throw new InvalidDataException($"Card '{card.Id}': 薪火回响 marker must be a unit echo_order.");
 
+            // 不焚主祭 (docs/26 §4): a 薪炎-damage reaction fired from the effect pipeline. It runs with no
+            // player prompt, so its target must be implicit; and it must not itself deal 薪炎 damage, which
+            // would re-enter the trigger (the runtime guard also blocks it — this keeps the data honest).
+            if (spec.Trigger == "kindle_damage_dealt")
+            {
+                if (card.Type != CardType.Unit)
+                    throw new InvalidDataException($"Card '{card.Id}': 'kindle_damage_dealt' (不焚) is a unit trigger.");
+                if (!EffectSpec.KindleReactionTargets.Contains(spec.Target))
+                    throw new InvalidDataException(
+                        $"Card '{card.Id}': kindle_damage_dealt target must be implicit, got '{spec.Target}'.");
+                if (spec.IsSpellDamage)
+                    throw new InvalidDataException($"Card '{card.Id}': a kindle_damage_dealt effect may not deal 薪炎 damage.");
+            }
+
             // 归魂 (docs/21 §1.4): a targetless 辉尘 (gain_mana) reaction, fired from ProcessDeaths.
             if (spec.Trigger == "ally_died_your_turn")
             {

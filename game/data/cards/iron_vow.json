@@ -512,5 +512,85 @@
 	],
 	"text": "嘲讽,持盾,福泽。壁倒,而墙不倒。",
 	"art_prompt": "a saintly warden-woman with a radiant greatshield, halo of oath-light, resolute even in falling"
+  },
+  {
+    "id": "iv_vigil_keeper",
+    "name": "铭誓祷者",
+    "faction": "iron_vow",
+    "type": "unit",
+    "rarity": "common",
+    "cost": 2,
+    "atk": 1,
+    "hp": 3,
+    "effects": [
+      {
+        "trigger": "battlecry",
+        "action": "grant_keyword",
+        "target": "target_unit_ally",
+        "keyword": "hold_fast",
+        "duration": "permanent"
+      }
+    ],
+    "text": "战吼:一个友方随从获得坚守。",
+    "art_prompt": "a young vigil sister in a grey habit worn over mail, pressing an oath-brand seal onto an empty pauldron laid across her knee, night watch lantern hooked at her hip"
+  },
+  {
+    "id": "iv_lamp_warden",
+    "name": "宵灯巡卫",
+    "faction": "iron_vow",
+    "type": "unit",
+    "rarity": "common",
+    "cost": 3,
+    "atk": 2,
+    "hp": 4,
+    "keywords": [
+      {
+        "keyword": "garrison"
+      }
+    ],
+    "text": "驻防(在己方底线行时 +1/+1)。",
+    "art_prompt": "a woman garrison sentry walking a parapet with a shuttered iron lantern and a short spear, heavy cloak pinned back against the wind"
+  },
+  {
+    "id": "iv_censer_bearer",
+    "name": "金炉祷士",
+    "faction": "iron_vow",
+    "type": "unit",
+    "rarity": "rare",
+    "cost": 4,
+    "atk": 3,
+    "hp": 4,
+    "effects": [
+      {
+        "trigger": "battlecry",
+        "action": "grant_keyword",
+        "target": "target_unit_ally",
+        "keyword": "blessing",
+        "duration": "permanent"
+      }
+    ],
+    "text": "战吼:一个友方随从获得福泽。",
+    "art_prompt": "a woman chaplain of the oath-flame raising a burning censer overhead on its chain, ember-gold light pooling down over her mail and around her boots"
+  },
+  {
+    "id": "iv_shield_forger",
+    "name": "圣盾祷者",
+    "faction": "iron_vow",
+    "type": "unit",
+    "rarity": "epic",
+    "cost": 6,
+    "atk": 4,
+    "hp": 5,
+    "effects": [
+      {
+        "trigger": "battlecry",
+        "action": "grant_keyword",
+        "target": "allies_home_row",
+        "keyword": "shield",
+        "duration": "permanent"
+      }
+    ],
+    "text": "战吼:你底线行的所有友方随从获得持盾。",
+    "art_prompt": "a serene, beautiful young adult abbey shield-sister with a refined non-specific fantasy face, grey-blue wimple over practical mail, kneeling in prayer before a tower shield while one hand traces an ember-gold oath blessing along its rim"
   }
 ]

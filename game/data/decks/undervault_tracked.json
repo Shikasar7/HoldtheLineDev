@@ -7,7 +7,7 @@
     "cards": [
       {
         "id": "uv_spike_barrier",
-        "count": 3
+        "count": 2
       },
       {
         "id": "uv_scattergunner",
@@ -46,15 +46,7 @@
         "count": 2
       },
       {
-        "id": "nl_sharpshooter",
-        "count": 2
-      },
-      {
         "id": "nl_shield_veteran",
-        "count": 2
-      },
-      {
-        "id": "nl_longbow_line",
         "count": 2
       },
       {
@@ -63,6 +55,18 @@
       },
       {
         "id": "uv_ironclad",
+        "count": 1
+      },
+      {
+        "id": "uv_long_gunner",
+        "count": 3
+      },
+      {
+        "id": "uv_forge_foreman",
+        "count": 1
+      },
+      {
+        "id": "uv_steam_medic",
         "count": 1
       }
     ]

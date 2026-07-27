@@ -546,5 +546,90 @@
     ],
     "text": "复制你炮台上的一件在装模块并装配(无视同名唯一;需 1 个空位;开关类复制无增益)。",
     "art_prompt": "twin mechanical arms holding up two identical glowing gun components face to face over a workbench, mirrored highlights, blueprint scrolls and calipers scattered below"
+  },
+  {
+    "id": "uv_steam_medic",
+    "name": "鸣壶医工",
+    "faction": "undervault",
+    "type": "unit",
+    "rarity": "common",
+    "cost": 2,
+    "atk": 1,
+    "hp": 3,
+    "effects": [
+      {
+        "trigger": "battlecry",
+        "action": "heal",
+        "target": "target_unit",
+        "amount": 2
+      }
+    ],
+    "text": "战吼:一个随从恢复 2 点生命。",
+    "art_prompt": "a cute spirited young adult dwarven field-nurse woman with bright expressive eyes, round youthful face and tidy twin braids, brass steam-kettle pack on her back, energetically pressing a hissing pressure poultice against a vambrace on the workbench"
+  },
+  {
+    "id": "uv_rangefinder",
+    "name": "量天照准手",
+    "faction": "undervault",
+    "type": "unit",
+    "rarity": "common",
+    "cost": 4,
+    "atk": 2,
+    "hp": 4,
+    "effects": [
+      {
+        "trigger": "battlecry",
+        "action": "boost_range",
+        "target": "target_unit_ally",
+        "amount": 1,
+        "duration": "permanent"
+      }
+    ],
+    "text": "战吼:一个友方随从射程 +1(不可叠加,上限 4)。",
+    "art_prompt": "a clever cheerful young adult dwarven spotter woman with bright eyes, a cute round face, compact ponytail and oversized brass goggles, eagerly sighting through a range-finding scope on a short tripod with a notched rule under her arm"
+  },
+  {
+    "id": "uv_long_gunner",
+    "name": "穿云铳手",
+    "faction": "undervault",
+    "type": "unit",
+    "rarity": "rare",
+    "cost": 4,
+    "atk": 2,
+    "hp": 4,
+    "keywords": [
+      {
+        "keyword": "range",
+        "value": 3
+      }
+    ],
+    "text": "射程 3。",
+    "art_prompt": "a confident lively young adult dwarven long-gunner woman with a cute determined face and short practical braids, kneeling behind a bolted-down long-barrelled gun on a heavy tripod, ground spikes clearly driven into the dirt"
+  },
+  {
+    "id": "uv_forge_foreman",
+    "name": "锤歌工长",
+    "faction": "undervault",
+    "type": "unit",
+    "rarity": "epic",
+    "cost": 6,
+    "atk": 4,
+    "hp": 6,
+    "effects": [
+      {
+        "trigger": "battlecry",
+        "action": "buff",
+        "target": "friendly_turret",
+        "atk": 2
+      },
+      {
+        "trigger": "battlecry",
+        "action": "heal",
+        "target": "friendly_turret",
+        "amount": 3
+      }
+    ],
+    "text": "战吼:若你的炮台在场,你的炮台 +2/+0 并恢复 3 点生命。",
+    "art_prompt": "a charming energetic young adult dwarven forge forewoman with a cute round face, bright eyes and goggles pushed over a high braided bun, hauling a glowing cannon plate with long tongs, furnace light on her excited expression"
   }
 ]

@@ -20,13 +20,14 @@ public class ContentTests
         var db = Cards();
         // Second batch (docs/10): 163. 补丁#4 (docs/21): 170. docs/20 匠会重做: undervault 31 → 33 (+2), pool → 172.
         // 平衡补丁#6 (0.14.0): iron_vow 30 → 32 (以身为盾 / 反击号角), pool → 174.
-        Assert.Equal(174, db.All.Count);
-        Assert.Equal(32, db.All.Count(c => c.Faction == "iron_vow"));
-        Assert.Equal(30, db.All.Count(c => c.Faction == "wildpack"));
-        Assert.Equal(36, db.All.Count(c => c.Faction == "duskweaver"));  // 30 + chick token + 5 (docs/21)
-        // docs/20 掘世匠会 重做: 14 模块 + 12 单位 + 5 指令 + 2 衍生物 (工造炮台 + 哨戒炮) = 33.
-        Assert.Equal(33, db.All.Count(c => c.Faction == "undervault"));
-        Assert.Equal(43, db.All.Count(c => c.Faction == "neutral"));     // 40 + coin token + 2 (docs/21)
+        // docs/26 女性角色卡: 每阵营 +4 (2 普 / 1 稀 / 1 史诗, 无新传说), pool → 194.
+        Assert.Equal(194, db.All.Count);
+        Assert.Equal(36, db.All.Count(c => c.Faction == "iron_vow"));
+        Assert.Equal(34, db.All.Count(c => c.Faction == "wildpack"));
+        Assert.Equal(40, db.All.Count(c => c.Faction == "duskweaver"));  // 30 + chick token + 5 (docs/21) + 4
+        // docs/20 掘世匠会 重做: 14 模块 + 12 单位 + 5 指令 + 2 衍生物 (工造炮台 + 哨戒炮) = 33, +4 = 37.
+        Assert.Equal(37, db.All.Count(c => c.Faction == "undervault"));
+        Assert.Equal(47, db.All.Count(c => c.Faction == "neutral"));     // 40 + coin token + 2 (docs/21) + 4
     }
 
     [Fact]
@@ -96,6 +97,31 @@ public class ContentTests
             Leader0 = deck.Leader, Leader1 = deck.Leader, ValidateDecks = true,
         }, db, leaders);
         Assert.NotEmpty(events);
+    }
+
+    /// <summary>docs/26: the 20 女性角色卡 all landed, at the intended rarities and with no new legendary —
+    /// the whole point of the batch was to put women in the everyday troop slots, not to add more mascots.</summary>
+    [Fact]
+    public void Female_character_batch_is_present_at_the_intended_rarities()
+    {
+        var db = Cards();
+        string[] batch =
+        [
+            "nl_water_bearer", "nl_banner_guard", "nl_pass_guide", "nl_veiled_blade",
+            "iv_vigil_keeper", "iv_lamp_warden", "iv_censer_bearer", "iv_shield_forger",
+            "wp_bone_piper", "wp_whelp_keeper", "wp_scar_hunter", "wp_horn_chieftain",
+            "dw_taper_acolyte", "dw_hearth_keeper", "dw_brand_bearer", "dw_ashveil_hierarch",
+            "uv_steam_medic", "uv_rangefinder", "uv_long_gunner", "uv_forge_foreman",
+        ];
+        var cards = batch.Select(id => db.Get(id)).ToList();
+
+        Assert.Equal(10, cards.Count(c => c.Rarity == Rarity.Common));
+        Assert.Equal(5, cards.Count(c => c.Rarity == Rarity.Rare));
+        Assert.Equal(5, cards.Count(c => c.Rarity == Rarity.Epic));
+        Assert.DoesNotContain(cards, c => c.Rarity == Rarity.Legendary);
+        // Every faction got the same 2/1/1 spread, so no faction's ladder is skewed by the batch.
+        foreach (var faction in new[] { "neutral", "iron_vow", "wildpack", "duskweaver", "undervault" })
+            Assert.Equal(4, cards.Count(c => c.Faction == faction));
     }
 
     [Fact]

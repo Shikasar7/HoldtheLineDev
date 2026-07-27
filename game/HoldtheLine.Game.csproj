@@ -6,7 +6,7 @@
     <!-- docs/15 §1: single source of truth for the CLIENT app version (distinct from RulesInfo.Version).
          Read at runtime via GameConfig.ClientVersion and by scripts/release.ps1 to drive vpk/git tag/version.json.
          Bump here only; the release script picks it up. SemVer Major.Minor.Patch. -->
-    <Version>0.8.9</Version>
+    <Version>0.9.0</Version>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\src\HoldTheLine.Rules\HoldTheLine.Rules.csproj" />

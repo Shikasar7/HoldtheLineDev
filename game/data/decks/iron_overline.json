@@ -6,24 +6,12 @@
     "leader": "leader_iv_valen",
     "cards": [
       {
-        "id": "iv_oath_squire",
-        "count": 4
-      },
-      {
-        "id": "iv_gate_ward",
-        "count": 1
-      },
-      {
         "id": "iv_oath_prayer",
         "count": 2
       },
       {
         "id": "iv_shield_brother",
-        "count": 4
-      },
-      {
-        "id": "nl_quartermaster",
-        "count": 2
+        "count": 3
       },
       {
         "id": "iv_line_sergeant",
@@ -59,6 +47,30 @@
       },
       {
         "id": "nl_mercenary_king",
+        "count": 1
+      },
+      {
+        "id": "iv_censer_bearer",
+        "count": 1
+      },
+      {
+        "id": "nl_pass_guide",
+        "count": 1
+      },
+      {
+        "id": "nl_mercenary_captain",
+        "count": 2
+      },
+      {
+        "id": "nl_line_breaker",
+        "count": 2
+      },
+      {
+        "id": "nl_royal_lancer",
+        "count": 1
+      },
+      {
+        "id": "nl_forced_march",
         "count": 1
       }
     ]

@@ -20,6 +20,7 @@ REPO_ROOT = TOOLS_DIR.parent.parent
 CARDS_DIR = REPO_ROOT / "game" / "data" / "cards"
 LEADERS_FILE = REPO_ROOT / "game" / "data" / "leaders" / "leaders.json"
 STYLE_BIBLE = TOOLS_DIR / "style_bible.json"
+ART_ENTRIES_FILE = TOOLS_DIR / "art_entries.json"
 OUT_DIR = TOOLS_DIR / "out"
 
 
@@ -31,6 +32,15 @@ def load_entries() -> list[dict]:
     for leader in json.loads(LEADERS_FILE.read_text(encoding="utf-8")):
         leader = {**leader, "type": "leader"}
         entries.append(leader)
+    # 允许美术先于玩法数据施工。正式卡牌 JSON 中已有的 id 始终优先，
+    # 这样卡牌入库后无需同步删除美术侧条目，也不会产生重复提示词。
+    if ART_ENTRIES_FILE.exists():
+        known_ids = {entry["id"] for entry in entries}
+        entries.extend(
+            entry
+            for entry in json.loads(ART_ENTRIES_FILE.read_text(encoding="utf-8"))
+            if entry["id"] not in known_ids
+        )
     bible = json.loads(STYLE_BIBLE.read_text(encoding="utf-8"))
     entries.extend(bible.get("extra_assets", []))
     return entries

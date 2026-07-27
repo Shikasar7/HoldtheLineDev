@@ -49,7 +49,8 @@ internal static class DamageMath
         bool kindle = amount > 0 && school.StartsWith("spell", StringComparison.Ordinal);
 
         // 免疫薪炎 (docs/21 §1.1/§4.7): the unit zeroes spell.* damage entirely.
-        if (kindle && target.HasKeyword(Keyword.KindleImmune))
+        // 不焚 (docs/26 §4): a side-wide aura does the same for EVERY unit of the aura owner's side.
+        if (kindle && (target.HasKeyword(Keyword.KindleImmune) || HasKindleAegis(state, target.OwnerSeat)))
             return new DamageStep(null, 0, DamageOutcomeKind.NoDamage);
 
         // 守护 (Guardian): a real hit (amount > 0) on a unit with an adjacent friendly guardian is soaked by
@@ -106,6 +107,13 @@ internal static class DamageMath
             .Select(state.UnitAt)
             .FirstOrDefault(u => u != null && u.OwnerSeat == target.OwnerSeat
                 && u.EntityId != target.EntityId && u.HasKeyword(Keyword.Guardian));
+
+    /// <summary>不焚 (docs/26 §4): whether <paramref name="seat"/> fields a 不焚 unit, which makes that whole side
+    /// immune to 薪炎 (spell.*) damage. Board-wide and self-inclusive (the aura source is covered too) — the
+    /// opposite of 福泽's adjacency-and-not-self rule, because 不焚 is a congregation-wide blessing, not a
+    /// bodyguard. Read live, so units deployed after the aura source are covered as well.</summary>
+    public static bool HasKindleAegis(GameState state, int seat) =>
+        state.Units.Any(u => u.OwnerSeat == seat && u.HasKeyword(Keyword.KindleAegis));
 
     /// <summary>Whether an orthogonally adjacent friendly unit carries 福泽 (so <paramref name="target"/> takes
     /// 1 less damage). The unit's own 福泽 never counts — the aura helps neighbours, not the source.</summary>

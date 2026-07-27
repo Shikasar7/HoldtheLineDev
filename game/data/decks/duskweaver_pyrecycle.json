@@ -22,10 +22,6 @@
         "count": 3
       },
       {
-        "id": "dw_choir_acolyte",
-        "count": 2
-      },
-      {
         "id": "dw_rekindle",
         "count": 3
       },
@@ -39,7 +35,7 @@
       },
       {
         "id": "dw_pyre_guard",
-        "count": 2
+        "count": 1
       },
       {
         "id": "dw_flare_summoner",
@@ -51,6 +47,14 @@
       },
       {
         "id": "dw_dusk_matriarch",
+        "count": 1
+      },
+      {
+        "id": "dw_brand_bearer",
+        "count": 2
+      },
+      {
+        "id": "dw_ashveil_hierarch",
         "count": 1
       }
     ]

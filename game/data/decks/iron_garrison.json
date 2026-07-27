@@ -7,10 +7,6 @@
     "cards": [
       {
         "id": "iv_wall_crossbow",
-        "count": 3
-      },
-      {
-        "id": "iv_gate_ward",
         "count": 2
       },
       {
@@ -19,7 +15,7 @@
       },
       {
         "id": "iv_garrison_guard",
-        "count": 4
+        "count": 2
       },
       {
         "id": "iv_shieldbearer",
@@ -58,16 +54,28 @@
         "count": 1
       },
       {
-        "id": "nl_longbow_line",
-        "count": 2
-      },
-      {
         "id": "iv_overline_judge",
         "count": 1
       },
       {
         "id": "iv_fortress_lord",
         "count": 1
+      },
+      {
+        "id": "iv_lamp_warden",
+        "count": 2
+      },
+      {
+        "id": "nl_banner_guard",
+        "count": 2
+      },
+      {
+        "id": "iv_shield_forger",
+        "count": 1
+      },
+      {
+        "id": "iv_vigil_keeper",
+        "count": 2
       }
     ]
   }

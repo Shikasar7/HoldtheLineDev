@@ -1,0 +1,142 @@
+[
+  {
+    "id": "nl_water_bearer",
+    "name": "甘泉杂役",
+    "type": "unit",
+    "faction": "neutral",
+    "art_prompt": "a lively, graceful young adult camp water-bearer woman with an appealing expressive face and naturally wind-tossed shoulder-length dark hair tied in a simple loose low knot, no braids, hurrying with a shoulder yoke and two sloshing buckets, rolled bandages and a tin cup tied at her belt"
+  },
+  {
+    "id": "nl_banner_guard",
+    "name": "旗影之盾",
+    "type": "unit",
+    "faction": "neutral",
+    "art_prompt": "a tall, slender and appealing young adult frontier woman soldier with a strong non-specific fantasy face, braced in front of a weather-beaten free-company banner, battered oval shield angled to catch an incoming blow, layered practical mercenary mail and brown travel cloth clearly distinct from Ironvow plate armor"
+  },
+  {
+    "id": "nl_pass_guide",
+    "name": "岭径引路人",
+    "type": "unit",
+    "faction": "neutral",
+    "art_prompt": "a lean frontier guide woman in a fur-lined hood pointing out a route with a marker stake, coiled rope and a bundle of trail flags across her back"
+  },
+  {
+    "id": "nl_veiled_blade",
+    "name": "夜帷刀客",
+    "type": "unit",
+    "faction": "neutral",
+    "art_prompt": "a tall slender and alluring young adult veiled duelist half-dissolving into her own cloak shadow, beautiful refined face partly visible with elegant smoky charcoal eye makeup, dark plum lips and a small black forehead sigil, one thin blade held low and reversed beside her leg, practical dark leather and layered travel cloth rather than cult armor"
+  },
+  {
+    "id": "iv_vigil_keeper",
+    "name": "铭誓祷者",
+    "type": "unit",
+    "faction": "iron_vow",
+    "art_prompt": "a young vigil sister in a grey habit worn over mail, pressing an oath-brand seal onto an empty pauldron laid across her knee, night watch lantern hooked at her hip"
+  },
+  {
+    "id": "iv_lamp_warden",
+    "name": "宵灯巡卫",
+    "type": "unit",
+    "faction": "iron_vow",
+    "art_prompt": "a woman garrison sentry walking a parapet with a shuttered iron lantern and a short spear, heavy cloak pinned back against the wind"
+  },
+  {
+    "id": "iv_censer_bearer",
+    "name": "金炉祷士",
+    "type": "unit",
+    "faction": "iron_vow",
+    "art_prompt": "a woman chaplain of the oath-flame raising a burning censer overhead on its chain, ember-gold light pooling down over her mail and around her boots"
+  },
+  {
+    "id": "iv_shield_forger",
+    "name": "圣盾祷者",
+    "type": "unit",
+    "faction": "iron_vow",
+    "art_prompt": "a serene, beautiful young adult abbey shield-sister with a refined non-specific fantasy face, grey-blue wimple over practical mail, kneeling in prayer before a tower shield while one hand traces an ember-gold oath blessing along its rim"
+  },
+  {
+    "id": "wp_bone_piper",
+    "name": "催蹄骨笛手",
+    "type": "unit",
+    "faction": "wildpack",
+    "art_prompt": "a tall, lean and charismatic young adult wildpack piper woman with a fierce beautiful non-specific fantasy face, blowing a long carved bone flute while striding forward, ochre war-paint, layered hide, feather and tooth charms whipping around untamed braids in kicked-up dust"
+  },
+  {
+    "id": "wp_whelp_keeper",
+    "name": "负崽人",
+    "type": "unit",
+    "faction": "wildpack",
+    "art_prompt": "a charismatic young adult orc woman whelp-keeper with an attractive expressive face, athletic build, neat braids and practical hide-and-fur gear, an empty folded-pelt sling across her chest, one small wolf pup far behind as a softly blurred silhouette fully separated from her outline"
+  },
+  {
+    "id": "wp_scar_hunter",
+    "name": "卷尘奔猎者",
+    "type": "unit",
+    "faction": "wildpack",
+    "art_prompt": "a striking tall athletic young adult Wildpack huntress inspired by the approved Bone Piper: fierce beautiful face, wind-tossed black hair with a few feather and bone ornaments, bold ochre war-paint, layered hides and fur, mid-stride with twin bone-handled hatchets, one small battle scar across her cheek and dust exploding from her heels"
+  },
+  {
+    "id": "wp_horn_chieftain",
+    "name": "苍角老酋",
+    "type": "unit",
+    "faction": "wildpack",
+    "art_prompt": "a charismatic vigorous mature Wildpack matriarch inspired by the approved Bone Piper: handsome beautiful face, tall fit powerful build, wind-tossed black hair with restrained silver streaks, bold ochre war-paint, layered hide, fur, feathers and totem bone, raising a great curved war-horn while commanding the pack forward"
+  },
+  {
+    "id": "dw_taper_acolyte",
+    "name": "秉烛侍徒",
+    "type": "unit",
+    "faction": "duskweaver",
+    "art_prompt": "a slight veiled novice woman holding a long ember-tipped taper out at arm's length, ash drifting past her face-cloth, robe hem heavy with soot"
+  },
+  {
+    "id": "dw_hearth_keeper",
+    "name": "藏火守炉人",
+    "type": "unit",
+    "faction": "duskweaver",
+    "art_prompt": "a tall, slender and alluring young adult gothic hearth-priestess with a refined non-specific fantasy face, elegant charcoal eye makeup and dark plum lips, braced behind a shoulder-high spiked brazier shield, low embers glowing through its iron grille, blackened iron and layered violet ritual cloth"
+  },
+  {
+    "id": "dw_brand_bearer",
+    "name": "灼印祭士",
+    "type": "unit",
+    "faction": "duskweaver",
+    "art_prompt": "a tall elegant and alluring young adult gothic ritual brand-sister matching the approved Hearth Keeper's makeup language but with her own facial identity: a softer heart-shaped face and arched brows, smoky charcoal eyes, dark plum lips, small symmetrical black forehead sigil and sheer violet ash veil, pressing a white-hot iron sigil forward at arm's length; its glowing head, circular collar, long shaft and gripping hand share one straight mechanical axis, with blackened iron, ornate chains and layered violet ritual cloth"
+  },
+  {
+    "id": "dw_ashveil_hierarch",
+    "name": "不焚主祭",
+    "type": "unit",
+    "faction": "duskweaver",
+    "art_prompt": "a tall regal and attractive mature gothic high priestess matching the approved Hearth Keeper's makeup language but with a distinct mature face: higher cheekbones, narrower almond eyes and straighter brows visible above a semi-opaque charcoal-violet half-face ash veil covering nose, mouth and chin, delicate symmetrical black forehead sigil, standing untouched at the center of a low ring of burning ash with both hands spread, blackened iron ornaments and layered charcoal-violet ritual robes, never hag-like"
+  },
+  {
+    "id": "uv_steam_medic",
+    "name": "鸣壶医工",
+    "type": "unit",
+    "faction": "undervault",
+    "art_prompt": "a cute spirited young adult dwarven field-nurse woman with bright expressive eyes, round youthful face and tidy twin braids, brass steam-kettle pack on her back, energetically pressing a hissing pressure poultice against a vambrace on the workbench"
+  },
+  {
+    "id": "uv_rangefinder",
+    "name": "量天照准手",
+    "type": "unit",
+    "faction": "undervault",
+    "art_prompt": "a clever cheerful young adult dwarven spotter woman with bright eyes, a cute round face, compact ponytail and oversized brass goggles, eagerly sighting through a range-finding scope on a short tripod with a notched rule under her arm"
+  },
+  {
+    "id": "uv_long_gunner",
+    "name": "穿云铳手",
+    "type": "unit",
+    "faction": "undervault",
+    "art_prompt": "a confident lively young adult dwarven long-gunner woman with a cute determined face and short practical braids, kneeling behind a bolted-down long-barrelled gun on a heavy tripod, ground spikes clearly driven into the dirt"
+  },
+  {
+    "id": "uv_forge_foreman",
+    "name": "锤歌工长",
+    "type": "unit",
+    "faction": "undervault",
+    "art_prompt": "a charming energetic young adult dwarven forge forewoman with a cute round face, bright eyes and goggles pushed over a high braided bun, hauling a glowing cannon plate with long tongs, furnace light on her excited expression"
+  }
+]

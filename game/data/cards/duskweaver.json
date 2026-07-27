@@ -750,5 +750,96 @@
     ],
     "text": "暗牌:在一个无人格子(敌方底线除外)埋设陷阱。随从进入即受 3 点薪炎灼蚀;现形后火焰持续 2 回合。",
     "art_prompt": "a dark-red rune buried in cracked ground, a single spark at one corner"
+  },
+  {
+    "id": "dw_taper_acolyte",
+    "name": "秉烛侍徒",
+    "faction": "duskweaver",
+    "type": "unit",
+    "rarity": "common",
+    "cost": 2,
+    "atk": 1,
+    "hp": 3,
+    "effects": [
+      {
+        "trigger": "channel",
+        "action": "extend",
+        "amount": 1
+      }
+    ],
+    "text": "由本随从引导的薪炎指令施法距离 +1。",
+    "art_prompt": "a slight veiled novice woman holding a long ember-tipped taper out at arm's length, ash drifting past her face-cloth, robe hem heavy with soot"
+  },
+  {
+    "id": "dw_hearth_keeper",
+    "name": "藏火守炉人",
+    "faction": "duskweaver",
+    "type": "unit",
+    "rarity": "common",
+    "cost": 3,
+    "atk": 1,
+    "hp": 4,
+    "keywords": [
+      {
+        "keyword": "taunt"
+      }
+    ],
+    "effects": [
+      {
+        "trigger": "channel",
+        "action": "deepen",
+        "amount": 1
+      }
+    ],
+    "text": "嘲讽。由本随从引导的薪炎指令法术加深 1(伤害 +1)。",
+    "art_prompt": "a tall, slender and alluring young adult gothic hearth-priestess with a refined non-specific fantasy face, elegant charcoal eye makeup and dark plum lips, braced behind a shoulder-high spiked brazier shield, low embers glowing through its iron grille, blackened iron and layered violet ritual cloth"
+  },
+  {
+    "id": "dw_brand_bearer",
+    "name": "灼印祭士",
+    "faction": "duskweaver",
+    "type": "unit",
+    "rarity": "rare",
+    "cost": 3,
+    "atk": 2,
+    "hp": 2,
+    "effects": [
+      {
+        "trigger": "battlecry",
+        "action": "sear",
+        "target": "target_unit",
+        "amount": 2,
+        "school": "spell.kindle",
+        "anchor": "self",
+        "anchor_range": 2
+      }
+    ],
+    "text": "战吼(以自身为锚点,射程2):对一个随从造成 2 点薪炎灼蚀伤害(无视坚守)。",
+    "art_prompt": "a tall elegant and alluring young adult gothic ritual brand-sister matching the approved Hearth Keeper's makeup language but with her own facial identity: a softer heart-shaped face and arched brows, smoky charcoal eyes, dark plum lips, small symmetrical black forehead sigil and sheer violet ash veil, pressing a white-hot iron sigil forward at arm's length; its glowing head, circular collar, long shaft and gripping hand share one straight mechanical axis, with blackened iron, ornate chains and layered violet ritual cloth"
+  },
+  {
+    "id": "dw_ashveil_hierarch",
+    "name": "不焚主祭",
+    "faction": "duskweaver",
+    "type": "unit",
+    "rarity": "epic",
+    "cost": 6,
+    "atk": 4,
+    "hp": 6,
+    "keywords": [
+      {
+        "keyword": "kindle_aegis"
+      }
+    ],
+    "effects": [
+      {
+        "trigger": "kindle_damage_dealt",
+        "action": "buff",
+        "target": "all_allies",
+        "hp": 1
+      }
+    ],
+    "text": "不焚(你的所有友方随从免疫薪炎)。你每造成一次薪炎伤害后,你的所有友方随从 +0/+1。",
+    "art_prompt": "a tall regal and attractive mature gothic high priestess matching the approved Hearth Keeper's makeup language but with a distinct mature face: higher cheekbones, narrower almond eyes and straighter brows visible above a semi-opaque charcoal-violet half-face ash veil covering nose, mouth and chin, delicate symmetrical black forehead sigil, standing untouched at the center of a low ring of burning ash with both hands spread, blackened iron ornaments and layered charcoal-violet ritual robes, never hag-like"
   }
 ]

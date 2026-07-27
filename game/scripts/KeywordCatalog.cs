@@ -66,6 +66,7 @@ public partial class KeywordCatalog : Resource
         Add("Rooted", "定身", "定身:本回合不能移动(跃障 / 额外移动力也无效),但仍可攻击与反击。");
         Add("MoltenSword", "熔岩巨剑", "熔岩巨剑:装备后 +3 攻击、射程 2、贯穿(永久)。");
         Add("KindleImmune", "免疫薪炎", "免疫薪炎:免疫薪炎(spell.kindle)伤害;但被薪炎命中仍会加速自身成长。");
+        Add("KindleAegis", "不焚", "不焚:你的所有友方随从免疫薪炎(spell.kindle)伤害,不限距离、含自身;被薪炎命中仍会加速成长。");
         Add("SpellWard", "法术护体", "法术护体:抵挡下一次敌方指令/战吼效果(伤害归零 / 指向失效),之后消耗。");
         return cat;
     }

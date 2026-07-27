@@ -475,6 +475,32 @@ public static class TestKit
         ],
     };
 
+    // ---- docs/26 fixtures (不焚 side-wide aura / kindle_damage_dealt / 不可叠加 boost_range) ----
+
+    /// <summary>不焚主祭 pattern (docs/26 §4): a side-wide 薪炎 immunity aura, plus a payout every time this
+    /// side resolves a 薪炎 damage effect — once per effect, not per unit burned.</summary>
+    public static readonly CardDefinition AegisUnit = new()
+    {
+        Id = "t_aegis", Name = "Aegis 4/6", Rarity = Rarity.Epic, Cost = 6, Atk = 4, Hp = 6,
+        Keywords = [new(Keyword.KindleAegis)],
+        Effects = [new EffectSpec { Trigger = "kindle_damage_dealt", Action = "buff", Target = "all_allies", Hp = 1 }],
+    };
+
+    /// <summary>不焚 without the payout — isolates the aura half of the card.</summary>
+    public static readonly CardDefinition AegisOnly = new()
+    { Id = "t_aegis_only", Name = "Aegis Only 1/5", Cost = 4, Atk = 1, Hp = 5, Keywords = [new(Keyword.KindleAegis)] };
+
+    /// <summary>A printed range-4 gun: proves boost_range clamps at the 总射程上限 instead of reaching 5.</summary>
+    public static readonly CardDefinition MaxRangeGun = new()
+    { Id = "t_maxgun", Name = "Max Gun 2/4", Cost = 5, Atk = 2, Hp = 4, Keywords = [new(Keyword.Range, 4)] };
+
+    /// <summary>量天照准手 pattern: +1 range over the target's PRINTED reach, permanent and non-stacking (docs/26).</summary>
+    public static readonly CardDefinition RangeBoostOrder = new()
+    {
+        Id = "t_boost_range", Name = "Rangefind", Type = CardType.Order, Cost = 1,
+        Effects = [new EffectSpec { Trigger = "play", Action = "boost_range", Target = "target_unit_ally", Amount = 1, Duration = "permanent" }],
+    };
+
     public static CardDatabase Db { get; } = new([
         Vanilla, BigVanilla, Charger, Assaulter, Scout, Scout1, Archer, GuardUnit, Holder,
         GuardianUnit, GuardianHolder, BlessUnit,
@@ -489,6 +515,7 @@ public static class TestKit
         ChargeUnit, DeepenChanneler, DiscountChanneler, ExtendChanneler, SoulReturnUnit, UncappedGrower, RootOrder,
         ScatterOrder, ScatterAimOrder, AllEnemiesSear, SmokeOrder, TrapOrder, SummonOneOrder, CounterSecret, FlameLash, MoltenPriest,
         EchoUnit, BehemothUnit, BigDrawOrder, PhoenixForm, ImmuneGrower, StealthOrder, WardOrder,
+        AegisUnit, AegisOnly, RangeBoostOrder, MaxRangeGun,
     ]);
 
     // 筑垒: grant Guard until your next turn. 狩猎号角: +1 movement this turn.

@@ -19,7 +19,7 @@
       },
       {
         "id": "wp_night_prowler",
-        "count": 2
+        "count": 1
       },
       {
         "id": "wp_pounce",
@@ -46,14 +46,6 @@
         "count": 3
       },
       {
-        "id": "wp_dire_wolf",
-        "count": 2
-      },
-      {
-        "id": "wp_hunt_matron",
-        "count": 1
-      },
-      {
         "id": "wp_ghost_of_wilds",
         "count": 2
       },
@@ -64,6 +56,14 @@
       {
         "id": "wp_moon_huntress",
         "count": 1
+      },
+      {
+        "id": "wp_scar_hunter",
+        "count": 2
+      },
+      {
+        "id": "nl_veiled_blade",
+        "count": 2
       }
     ]
   }

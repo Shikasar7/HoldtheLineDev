@@ -11,19 +11,19 @@
       },
       {
         "id": "dw_spark",
-        "count": 3
+        "count": 2
       },
       {
         "id": "dw_flame_adept",
-        "count": 4
+        "count": 3
       },
       {
         "id": "dw_flame_lash",
-        "count": 3
+        "count": 2
       },
       {
         "id": "dw_searing_brand",
-        "count": 3
+        "count": 2
       },
       {
         "id": "dw_ember_seer",
@@ -32,10 +32,6 @@
       {
         "id": "dw_conflagrate",
         "count": 1
-      },
-      {
-        "id": "dw_flame_caster",
-        "count": 2
       },
       {
         "id": "dw_vesper_cantor",
@@ -60,6 +56,18 @@
       {
         "id": "dw_first_ritualist",
         "count": 1
+      },
+      {
+        "id": "dw_hearth_keeper",
+        "count": 2
+      },
+      {
+        "id": "dw_pyre_guard",
+        "count": 2
+      },
+      {
+        "id": "dw_ash_phoenix",
+        "count": 2
       }
     ]
   }

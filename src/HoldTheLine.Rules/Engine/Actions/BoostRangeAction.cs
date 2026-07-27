@@ -4,7 +4,8 @@ using HoldTheLine.Rules.State;
 
 namespace HoldTheLine.Rules.Engine.Actions;
 
-/// <summary>boost_range (加农校准): additive +Amount range on each resolved target.</summary>
+/// <summary>boost_range (量天照准手 / 加农校准): +Amount range measured from the target's PRINTED range,
+/// capped at <see cref="ResolutionContext.TurretRangeCap"/>.</summary>
 internal sealed class BoostRangeAction : EffectActionBase
 {
     public override string Name => "boost_range";
@@ -12,11 +13,18 @@ internal sealed class BoostRangeAction : EffectActionBase
     public override void Execute(ResolutionContext ctx, UnitInstance? source, int ownerSeat, EffectSpec spec,
         IReadOnlyList<UnitInstance> targets, Cell? targetCell, int amount, int? secondaryTargetUnitId)
     {
-        // 加农校准: +Amount range, ADDITIVE onto whatever range the unit already has (docs/00 §3 —
-        // restores the GDD "射程加法叠加" original). KeywordValue is a max across grants, so raising
-        // it means granting (current range + Amount): a melee unit → range Amount, a range-2 unit → 2+Amount.
+        // 不可叠加 (docs/26, 用户改版): the granted value is computed from the card's PRINTED range, never from
+        // the unit's current (already-boosted) range — so a second 量天照准手 recomputes the same number and
+        // KeywordValue's max-across-grants swallows it. Melee counts as reach 1, so "+1" really means 射程 2
+        // rather than the old range-1 no-op (that dead grant is why 校准指令 was repurposed in 0.4.1).
+        // 上限 4: the same 总射程上限 the 炮台 module stack obeys (docs/20 §2.1) — a turret already at 4 keeps 4,
+        // because the grant lands in the External layer where KeywordValue takes the max.
         foreach (var t in targets)
-            ctx.GrantKeyword(t, Keyword.Range, t.KeywordValue(Keyword.Range) + spec.Amount, spec.Duration, ownerSeat);
+        {
+            int printed = Math.Max(1, ctx.Db.Get(t.CardId).KeywordValue(Keyword.Range));
+            int granted = Math.Min(ResolutionContext.TurretRangeCap, printed + spec.Amount);
+            ctx.GrantKeyword(t, Keyword.Range, granted, spec.Duration, ownerSeat);
+        }
     }
 
     // 加农校准: +range on an ally — reach from safety, worth a small buff.

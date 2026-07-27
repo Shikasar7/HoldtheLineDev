@@ -2296,6 +2296,7 @@ public partial class BattleScene : Control, IPlaybackHost, ITargetingHost
 				Keyword.Taunt => "嘲",
 				Keyword.Guardian => "护",
 				Keyword.KindleImmune => "免", // 免疫薪炎 — an innate, permanent keyword (雏凤/凤凰)
+				Keyword.KindleAegis => "庇",  // 不焚 — the side-wide 薪炎 aura (不焚主祭); 免 is the single-unit one
 				_ => "",
 			});
 		return string.Join(" ", parts.Where(p => p.Length > 0));

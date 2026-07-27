@@ -688,5 +688,82 @@
 	],
 	"text": "一个友方随从获得法术护体(抵挡下一次敌方指令/战吼效果)。",
 	"art_prompt": "a floating talisman forming a half-dome of light against an incoming spell"
+  },
+  {
+    "id": "nl_water_bearer",
+    "name": "甘泉杂役",
+    "faction": "neutral",
+    "type": "unit",
+    "rarity": "common",
+    "cost": 2,
+    "atk": 1,
+    "hp": 2,
+    "effects": [
+      {
+        "trigger": "battlecry",
+        "action": "heal",
+        "target": "target_unit",
+        "amount": 3
+      }
+    ],
+    "text": "战吼:一个随从恢复 3 点生命。",
+    "art_prompt": "a lively, graceful young adult camp water-bearer woman with an appealing expressive face and naturally wind-tossed shoulder-length dark hair tied in a simple loose low knot, no braids, hurrying with a shoulder yoke and two sloshing buckets, rolled bandages and a tin cup tied at her belt"
+  },
+  {
+    "id": "nl_banner_guard",
+    "name": "旗影之盾",
+    "faction": "neutral",
+    "type": "unit",
+    "rarity": "common",
+    "cost": 4,
+    "atk": 2,
+    "hp": 5,
+    "keywords": [
+      {
+        "keyword": "shield"
+      }
+    ],
+    "text": "持盾。",
+    "art_prompt": "a tall, slender and appealing young adult frontier woman soldier with a strong non-specific fantasy face, braced in front of a weather-beaten free-company banner, battered oval shield angled to catch an incoming blow, layered practical mercenary mail and brown travel cloth clearly distinct from Ironvow plate armor"
+  },
+  {
+    "id": "nl_pass_guide",
+    "name": "岭径引路人",
+    "faction": "neutral",
+    "type": "unit",
+    "rarity": "rare",
+    "cost": 3,
+    "atk": 2,
+    "hp": 3,
+    "effects": [
+      {
+        "trigger": "battlecry",
+        "action": "move_bonus",
+        "target": "target_unit_ally",
+        "amount": 2
+      }
+    ],
+    "text": "战吼:一个友方随从本回合移动力 +2。",
+    "art_prompt": "a lean frontier guide woman in a fur-lined hood pointing out a route with a marker stake, coiled rope and a bundle of trail flags across her back"
+  },
+  {
+    "id": "nl_veiled_blade",
+    "name": "夜帷刀客",
+    "faction": "neutral",
+    "type": "unit",
+    "rarity": "epic",
+    "cost": 5,
+    "atk": 4,
+    "hp": 3,
+    "keywords": [
+      {
+        "keyword": "hidden"
+      },
+      {
+        "keyword": "cheap_shot"
+      }
+    ],
+    "text": "潜行(不能被敌方指令/战吼选中,攻击后现形),偷袭。",
+    "art_prompt": "a tall slender and alluring young adult veiled duelist half-dissolving into her own cloak shadow, beautiful refined face partly visible with elegant smoky charcoal eye makeup, dark plum lips and a small black forehead sigil, one thin blade held low and reversed beside her leg, practical dark leather and layered travel cloth rather than cult armor"
   }
 ]

@@ -90,6 +90,12 @@ public enum Keyword
     /// damage pipeline, BUT a 薪炎 hit on a 成长 unit still accelerates its growth. Drives the 雏凤/凤凰 loop.</summary>
     KindleImmune,
 
+    /// <summary>不焚 — a SIDE-WIDE aura (docs/26 §4): while this unit is on the board, every unit of its owner
+    /// takes 0 from spell.* (薪炎) damage, exactly as if each carried <see cref="KindleImmune"/>. Unlike 福泽
+    /// (adjacency) it has no range and unlike 免疫薪炎 it is not innate to the protected unit — it is read live
+    /// off the board, so units deployed after it are covered too. 成长加速 still fires on an immune 薪炎 hit.</summary>
+    KindleAegis,
+
     /// <summary>法术护体 — absorbs the NEXT enemy single-target 指令/战吼 effect (docs/21 §2): that effect is
     /// voided on this unit (damage → 0 / targeting fails) and the ward is consumed. AoE is unaffected.</summary>
     SpellWard,

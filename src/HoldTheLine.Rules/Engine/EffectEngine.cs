@@ -27,13 +27,20 @@ internal static class EffectEngine
         int spellDamageBonus = 0,
         int? secondaryTargetUnitId = null)
     {
+        bool kindleDealt = false;
         foreach (var spec in effects)
         {
             if (spec.Trigger != trigger)
                 continue;
-            Run(ctx, source, ownerSeat, spec, targetUnitId, targetCell, spellDamageBonus, secondaryTargetUnitId);
+            kindleDealt |= Run(ctx, source, ownerSeat, spec, targetUnitId, targetCell, spellDamageBonus, secondaryTargetUnitId);
         }
         ctx.ProcessDeaths();
+
+        // 不焚主祭 (docs/26 §4): one 薪炎-damage payout per RESOLUTION — an order, a battlecry, a deathrattle,
+        // or 门德's echo recast each count once no matter how many units the fire touched. Fired after the death
+        // sweep so a unit the fire just killed cannot be saved by the reaction's own buff.
+        if (kindleDealt)
+            ctx.FireKindleDamageDealt(ownerSeat);
     }
 
     /// <summary>Sum of a 引导者's channel-marker bonus of the given action (deepen/discount); 0 if it has none.
@@ -143,7 +150,10 @@ internal static class EffectEngine
         return true;
     }
 
-    private static void Run(ResolutionContext ctx, UnitInstance? source, int ownerSeat, EffectSpec spec, int? targetUnitId, Cell? targetCell, int spellDamageBonus = 0, int? secondaryTargetUnitId = null)
+    /// <summary>Resolves one effect. Returns whether it actually put 薪炎 (spell.*) damage on the board — the
+    /// signal <see cref="RunTrigger"/> aggregates for the 不焚 reaction (docs/26 §4). An effect that fizzles
+    /// (no targets, wrong side, absorbed by 法术护体) returns false: no fire was cast, so nothing pays out.</summary>
+    private static bool Run(ResolutionContext ctx, UnitInstance? source, int ownerSeat, EffectSpec spec, int? targetUnitId, Cell? targetCell, int spellDamageBonus = 0, int? secondaryTargetUnitId = null)
     {
         var targets = ResolveTargets(ctx, source, ownerSeat, spec.Target, targetUnitId, targetCell);
 
@@ -153,7 +163,7 @@ internal static class EffectEngine
         {
             bool ally = targets[0].OwnerSeat == ownerSeat;
             if ((spec.TargetSide == "enemy" && ally) || (spec.TargetSide == "ally" && !ally))
-                return;
+                return false;
         }
 
         // 法术护体 (docs/21 §2): an enemy single-target 指令/战吼 effect on a warded unit is voided (the whole
@@ -161,7 +171,7 @@ internal static class EffectEngine
         if (spec.NeedsUnitTarget && targets.Count == 1 && targets[0].OwnerSeat != ownerSeat && targets[0].HasKeyword(Keyword.SpellWard))
         {
             ctx.ConsumeSpellWard(targets[0]);
-            return;
+            return false;
         }
 
         // amount_max: a random magnitude in [Amount, AmountMax], rolled ONCE per effect (not per target)
@@ -179,6 +189,11 @@ internal static class EffectEngine
         // data-borne action is registered; Get stays loud otherwise (the old switch's default throw).
         EffectActionRegistry.Get(spec.Action)
             .Execute(ctx, source, ownerSeat, spec, targets, targetCell, amount, secondaryTargetUnitId);
+
+        // 薪炎 damage that actually had somewhere to land — the 不焚 payout signal (docs/26 §4). Immunity does
+        // NOT suppress it: the fire was cast, it simply hurt nobody (same reading as 成长加速, which also fires
+        // through immunity). A targetless spell effect (none/cell) never lands damage, so it never pays out.
+        return spec.IsSpellDamage && targets.Count > 0;
     }
 
     private static List<UnitInstance> ResolveTargets(

@@ -27,11 +27,11 @@
       },
       {
         "id": "dw_flame_adept",
-        "count": 2
+        "count": 1
       },
       {
         "id": "dw_dusk_warden",
-        "count": 4
+        "count": 2
       },
       {
         "id": "dw_conflagrate",
@@ -43,7 +43,7 @@
       },
       {
         "id": "dw_pyre_guard",
-        "count": 3
+        "count": 2
       },
       {
         "id": "dw_fire_curtain",
@@ -71,6 +71,18 @@
       },
       {
         "id": "dw_inferno_behemoth",
+        "count": 1
+      },
+      {
+        "id": "dw_hearth_keeper",
+        "count": 2
+      },
+      {
+        "id": "dw_taper_acolyte",
+        "count": 1
+      },
+      {
+        "id": "dw_ashveil_hierarch",
         "count": 1
       }
     ]

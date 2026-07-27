@@ -920,6 +920,47 @@ internal sealed class ResolutionContext
     private static bool IsCappedSelfGrowth(EffectSpec e) =>
         e.Trigger == "ally_order_played" && e.Action == "buff" && e.Target == "self" && !e.Uncapped;
 
+    // ---- 教团触发器: kindle_damage_dealt (docs/26 §4) ----
+
+    /// <summary>Re-entrancy latch for <see cref="FireKindleDamageDealt"/>: a reaction must never re-trigger
+    /// itself. Data validation already forbids a 薪炎-damage payload on the trigger, so this is the belt to
+    /// that suspenders — and it also collapses a chain of reactions from ONE effect into one firing.</summary>
+    private bool _firingKindleReaction;
+
+    /// <summary>
+    /// 不焚主祭 (docs/26 §4): fires every friendly unit's <c>kindle_damage_dealt</c> effects once per 薪炎
+    /// (spell.*) damage EFFECT <paramref name="seat"/> resolves — per effect, NOT per unit hit, so 燎原 across
+    /// five enemies pays out once, not five times. Units fire in deploy order (Units list order) for replay
+    /// determinism, and a unit killed by an earlier reaction in the same pass is skipped (sweep semantics).
+    /// </summary>
+    public void FireKindleDamageDealt(int seat)
+    {
+        if (_firingKindleReaction)
+            return;
+
+        var sources = State.Units
+            .Where(u => u.OwnerSeat == seat && Db.Get(u.CardId).Effects.Any(e => e.Trigger == "kindle_damage_dealt"))
+            .ToList();
+        if (sources.Count == 0)
+            return;
+
+        _firingKindleReaction = true;
+        try
+        {
+            foreach (var unit in sources)
+            {
+                if (State.FindUnit(unit.EntityId) is null)
+                    continue; // died to an earlier reaction in this pass
+                var def = Db.Get(unit.CardId);
+                EffectEngine.RunTrigger(this, unit, seat, def.Effects, "kindle_damage_dealt", targetUnitId: null);
+            }
+        }
+        finally
+        {
+            _firingKindleReaction = false;
+        }
+    }
+
     /// <summary>薪火回响 (docs/21 §3.1): whether <paramref name="seat"/> fields a unit that echoes its first 薪炎
     /// damage order each turn (门德).</summary>
     public bool HasFirstKindleCopier(int seat) =>

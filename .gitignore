@@ -29,6 +29,10 @@ art_work/
 # Raw AI-generated art (regenerable; the game uses the processed game/assets output)
 tools/art/generated/
 
+# 候选原图目录 (docs/26 起):四选一之前的候选,单批就有 200MB+,与 generated/ 同性质——可重生成,
+# 定稿已进 game/assets。留库的是 out/ 下的接触表 jpg(几百 KB),它才是验收留档。
+tools/art/out/*_candidates/
+
 # --- 隐私 / 安全排除 (2026-07-19) ---
 # 内部设计/策略文档(含服务器 IP 引用等)
 docs/

@@ -43,7 +43,7 @@
       },
       {
         "id": "wp_den_mother",
-        "count": 2
+        "count": 1
       },
       {
         "id": "wp_hunt_matron",
@@ -62,11 +62,15 @@
         "count": 2
       },
       {
-        "id": "wp_alpha_matriarch",
+        "id": "wp_packlord",
         "count": 1
       },
       {
-        "id": "wp_packlord",
+        "id": "wp_whelp_keeper",
+        "count": 1
+      },
+      {
+        "id": "wp_horn_chieftain",
         "count": 1
       }
     ]

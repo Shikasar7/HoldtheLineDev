@@ -295,3 +295,31 @@ id:`leader_iv_valen`、`leader_wp_saen`。1024×1024(维持正方形——最终
 ### K.3 可选(默认不做)
 
 - 两张新卡的 `card_art_framing.json` 取景在开发模式「插画取景」里逐卡保存,**出图后再调**;缺图时客户端自动回退几何占位,不阻塞发版。
+
+---
+
+## L. docs/26 女性角色卡扩充(2026-07-27)
+
+**状态:已生成、完成后处理并导入 Godot。**
+
+- 总量:20 张单位卡原图(1024×1536)、20 张游戏卡图(512×768 RGB)、20 张立牌(512×672 RGBA)。
+- 按阵营:中立 4、铁誓 4、野群 4、黄昏教团 4、掘世匠会 4;零 UI / 状态 / 特效资产。
+- 每张先生成 2 个候选;`wp_whelp_keeper` 与 `dw_ashveil_hierarch` 因 F5 / F1 验收不通过各追加 1 次定向重绘。
+- 最终提示词取 `out/prompts.json` 对应 20 条,并使用三张 v1 锚点图;`style_bible.json` 未改动。
+- 因玩法卡牌 JSON 尚未入库,本批条目暂存 `art_entries.json`;生成器始终优先采用同 ID 的正式卡牌 JSON,后续数据入库不会产生重复。
+- QA:`tools/art/out/docs26_cards_contact.jpg`、`tools/art/out/docs26_standee_contact.jpg`;候选对照保存在 `tools/art/out/docs26_*_candidates.jpg`。
+
+### L.1 角色吸引力重绘与候选切换(2026-07-27)
+
+- 统一补充年轻成年、精致利落、偏亚洲审美的面部与气质要求；避免老态、臃肿和夸张大妈化。女矮人改为短身结实但不肥胖、可爱有元气且明确为成年人。
+- 重绘 13 张：`nl_water_bearer`、`nl_banner_guard`、`iv_shield_forger`、`wp_whelp_keeper`、`wp_scar_hunter`、`wp_horn_chieftain`、`dw_hearth_keeper`、`dw_brand_bearer`、`dw_ashveil_hierarch`、`uv_steam_medic`、`uv_rangefinder`、`uv_long_gunner`、`uv_forge_foreman`。
+- `iv_shield_forger` 的显示名由“盾墙之母”调整为“圣盾祷者”，形象改为年轻修道院盾姊跪姿祝福塔盾，不再表现为年长锻造者。
+- 切换为已生成的另一候选图 4 张：`nl_pass_guide`、`iv_lamp_warden`、`iv_censer_bearer`、`dw_taper_acolyte`。
+- 以上 17 张已重新后处理；全局 `style_bible.json` 未改动，重绘仍使用三张 v1 锚点保持既有卡面风格。
+- 口径修正：仅掘世匠会 `uv_*` 为矮人；中立、铁誓、野群与黄昏教团均保持高挑或精干的人类/兽人女性体态。“符合亚洲审美”指面向亚洲玩家的精致度与角色吸引力，不强制亚洲族裔面孔。
+- 阵营辨识追加重绘：`nl_banner_guard` 改为自由佣兵混搭装备，`wp_bone_piper` 强化骨笛、兽皮与图腾，`dw_hearth_keeper` 改为高挑人类哥特守炉祭司；教团采用漂亮庄严的暗黑妆容，避免巫婆化。
+- 用户定稿参考追加：`dw_hearth_keeper` 直接采用用户选定的哥特守炉祭司图；以其烟熏眼妆、暗梅唇色、额心黑纹与紫黑薄纱为参考重绘 `nl_veiled_blade`、`dw_brand_bearer`、`dw_ashveil_hierarch`，其中夜帷刀客仍保留中立刺客装备而非教团身份。
+- 以用户选定的 `wp_bone_piper` 为野群女性参考，重绘 `wp_scar_hunter` 与 `wp_horn_chieftain`，统一黑色风发、赭色战纹、兽皮骨羽与高挑健美体态；`nl_water_bearer` 同步重绘为自然松散低发髻，取消违和辫发。
+- 精修定稿：`nl_veiled_blade` 保留人物造型、姿态与眼神，仅将反握短剑抬至大腿上段并斜跨卡面核心裁切区；`dw_brand_bearer` 校正烙印头、连接环、杆身与握把为同一机械轴线；`dw_ashveil_hierarch` 增加遮住鼻口下半脸的紫黑灰纱，并以更高颧骨、窄杏眼和较直眉形建立成熟主祭身份。
+- 同阵营允许共享妆容与文化语言，但脸型、眉眼、年龄、伤痕或神态必须有明确区分，禁止同一人物换装式重复。
+- `nl_veiled_blade` 最终按用户选择回退至第一版低位反握短剑构图；抬高短剑的精修候选不再作为正式资产。
