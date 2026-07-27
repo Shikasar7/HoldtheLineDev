@@ -156,6 +156,25 @@ internal sealed class ResolutionContext
         RecomputeGarrison(unit); // the new form may (re)gain 驻防 on the home row
     }
 
+    /// <summary>领袖回血 (docs/26 追加): restores up to <paramref name="amount"/> leader HP, capped at the
+    /// match's starting leader HP — a leader can be topped up but never pushed above where it began, so this
+    /// can't be stacked into an ever-growing HP pool. Emits nothing but the event; there is no death check
+    /// (healing can only move HP up).</summary>
+    public void HealLeader(int seat, int amount)
+    {
+        if (amount <= 0)
+            return;
+        var player = State.Player(seat);
+        int healed = Math.Min(amount, State.LeaderHpMax - player.LeaderHp);
+        if (healed <= 0)
+        {
+            Emit(new LeaderHealedEvent { Seat = seat, Amount = 0, NewHp = player.LeaderHp });
+            return;
+        }
+        player.LeaderHp += healed;
+        Emit(new LeaderHealedEvent { Seat = seat, Amount = healed, NewHp = player.LeaderHp });
+    }
+
     public void DamageLeader(int seat, int amount)
     {
         if (amount <= 0)

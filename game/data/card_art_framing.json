@@ -222,7 +222,7 @@
   "iv_aegis_sergeant": {
     "zoom": 1,
     "offset_x": 0.04,
-    "offset_y": 0.22
+    "offset_y": 0.25
   },
   "iv_stone_sentinel": {
     "zoom": 1,
@@ -649,5 +649,66 @@
   "iv_counter_horn": {
     "zoom": 1,
     "offset_x": 0.32
+  },
+  "nl_water_bearer": {
+    "zoom": 1,
+    "offset_x": 0.01,
+    "offset_y": 0.34
+  },
+  "nl_veiled_blade": {
+    "zoom": 1.07,
+    "offset_y": 0.37
+  },
+  "nl_pass_guide": {
+    "zoom": 1,
+    "offset_y": 0.19
+  },
+  "iv_lamp_warden": {
+    "zoom": 1,
+    "offset_y": 0.31
+  },
+  "iv_vigil_keeper": {
+    "zoom": 1,
+    "offset_y": 0.34
+  },
+  "iv_censer_bearer": {
+    "zoom": 1,
+    "offset_y": 0.32
+  },
+  "iv_shield_forger": {
+    "zoom": 1,
+    "offset_y": 0.24
+  },
+  "wp_bone_piper": {
+    "zoom": 1,
+    "offset_y": 0.4
+  },
+  "wp_whelp_keeper": {
+    "zoom": 1,
+    "offset_y": 0.36
+  },
+  "wp_scar_hunter": {
+    "zoom": 1,
+    "offset_y": 0.29
+  },
+  "wp_horn_chieftain": {
+    "zoom": 1.05,
+    "offset_y": 0.48
+  },
+  "dw_taper_acolyte": {
+    "zoom": 1,
+    "offset_y": 0.24
+  },
+  "dw_hearth_keeper": {
+    "zoom": 1,
+    "offset_y": 0.19
+  },
+  "dw_brand_bearer": {
+    "zoom": 1,
+    "offset_y": 0.22
+  },
+  "dw_ashveil_hierarch": {
+    "zoom": 1,
+    "offset_y": 0.22
   }
 }

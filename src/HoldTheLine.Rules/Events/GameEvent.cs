@@ -29,6 +29,7 @@ namespace HoldTheLine.Rules.Events;
 // 反击号角 (0.14.0): additive event type — protocol bumps with the RulesVersion this ships in.
 [JsonDerivedType(typeof(GarrisonLockedEvent), "garrison_locked")]
 [JsonDerivedType(typeof(LeaderDamagedEvent), "leader_damaged")]
+[JsonDerivedType(typeof(LeaderHealedEvent), "leader_healed")]
 [JsonDerivedType(typeof(PressureTideEvent), "pressure_tide")]
 [JsonDerivedType(typeof(LeaderSkillUsedEvent), "leader_skill_used")]
 [JsonDerivedType(typeof(UnitDiedEvent), "unit_died")]
@@ -206,6 +207,19 @@ public sealed record LeaderSkillUsedEvent : GameEvent
 }
 
 public sealed record LeaderDamagedEvent : GameEvent
+{
+    public required int Seat { get; init; }
+    public required int Amount { get; init; }
+    public required int NewHp { get; init; }
+}
+
+/// <summary>
+/// 领袖回血 (docs/26 追加, 甘泉杂役): the counterpart to <see cref="LeaderDamagedEvent"/>. Separate event
+/// rather than a negative-amount damage event so the client can present it as healing and the stat
+/// accumulator does not count it as damage dealt. <see cref="Amount"/> is the HP actually restored
+/// (0 when the leader was already at full), so the client can skip a no-op flourish.
+/// </summary>
+public sealed record LeaderHealedEvent : GameEvent
 {
     public required int Seat { get; init; }
     public required int Amount { get; init; }

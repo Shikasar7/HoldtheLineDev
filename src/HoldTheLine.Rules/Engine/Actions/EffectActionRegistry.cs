@@ -23,6 +23,8 @@ public static class EffectActionRegistry
             new DrawAction(),
             new GainManaAction(),
             new HealAction(),
+            // docs/26 追加 (甘泉杂役): 回领袖血 —— 卡池首个碰领袖生命的效果, 封顶在本局起始生命.
+            new HealLeaderAction(),
             new GrantKeywordAction(),
             new BoostRangeAction(),
             new SummonAction(),

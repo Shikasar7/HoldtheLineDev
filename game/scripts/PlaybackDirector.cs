@@ -221,6 +221,9 @@ public sealed class PlaybackDirector
 			case LeaderDamagedEvent ld:
 				await ReactLeaderDamage(ld, fromAttack: false); // standalone (tide / fatigue)
 				break;
+			case LeaderHealedEvent { Amount: > 0 } lh:
+				await ReactLeaderHeal(lh);                      // 甘泉杂役 (docs/26 追加); Amount 0 = 已满,不演
+				break;
 			case UnitDiedEvent dd:
 				await ReactDeath(dd);
 				break;
@@ -1177,6 +1180,16 @@ public sealed class PlaybackDirector
 		LeaderShake(plate, onOpponent ? 10f : 7f);
 		if (fromAttack) EdgeFlash(onOpponent ? 0.85f : 0.55f); // 破线 red vignette pulse
 		else ScreenShake(3f);                                  // standalone (tide / fatigue) shakes on its own
+		await Delay(0.2);
+	}
+
+	/// <summary>领袖回血 (docs/26 追加): the mirror of <see cref="ReactLeaderDamage"/> — green +N on the plate,
+	/// no shake, no edge flash. Only fires when HP actually moved (a full leader emits Amount 0).</summary>
+	private async Task ReactLeaderHeal(LeaderHealedEvent lh)
+	{
+		var plate = _view.LeaderPlate(lh.Seat);
+		Flash(plate, BattleTheme.HpColor);
+		FloatNumber(Center(plate) + new Vector2(0, 24), $"+{lh.Amount}", BattleTheme.HpColor, lh.Amount + 2);
 		await Delay(0.2);
 	}
 

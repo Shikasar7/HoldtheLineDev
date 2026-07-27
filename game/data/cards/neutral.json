@@ -701,12 +701,11 @@
     "effects": [
       {
         "trigger": "battlecry",
-        "action": "heal",
-        "target": "target_unit",
+        "action": "heal_leader",
         "amount": 3
       }
     ],
-    "text": "战吼:一个随从恢复 3 点生命。",
+    "text": "战吼:你的领袖恢复 3 点生命。",
     "art_prompt": "a lively, graceful young adult camp water-bearer woman with an appealing expressive face and naturally wind-tossed shoulder-length dark hair tied in a simple loose low knot, no braids, hurrying with a shoulder yoke and two sloshing buckets, rolled bandages and a tin cup tied at her belt"
   },
   {

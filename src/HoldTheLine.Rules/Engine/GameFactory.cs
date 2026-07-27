@@ -35,6 +35,7 @@ public static class GameFactory
             TurnNumber = 0,
             ActiveSeat = config.FirstSeat,
             PressureTideStartRound = config.PressureTideStartRound,
+            LeaderHpMax = config.LeaderHp,   // 领袖回血的封顶 = 本局起始生命
             Rng = new DeterministicRng(config.Seed),
             Players =
             [

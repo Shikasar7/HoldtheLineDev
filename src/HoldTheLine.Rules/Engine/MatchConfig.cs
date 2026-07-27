@@ -12,7 +12,11 @@ public sealed record MatchConfig
     public int FirstSeat { get; init; }
     public string Leader0 { get; init; } = "";
     public string Leader1 { get; init; } = "";
-    public int LeaderHp { get; init; } = 25;
+    /// <summary>标准起始领袖生命. Also the ceiling 领袖回血 (甘泉杂役) tops up to — see
+    /// <see cref="State.GameState.LeaderHpMax"/>.</summary>
+    public const int DefaultLeaderHp = 25;
+
+    public int LeaderHp { get; init; } = DefaultLeaderHp;
     public int OpeningHandFirst { get; init; } = 4;
     /// <summary>Second player draws one extra card on top of the first player's opening hand,
     /// plus the coin below. Balance patch #3 (Rules 0.8.1): dropped +2→+1 (6→5) — with the coin,

@@ -335,6 +335,11 @@ public sealed class GameState
     /// cloned so replays/snapshots keep it; an old snapshot lacking the field keeps the initializer's 8.</summary>
     public int PressureTideStartRound { get; set; } = Engine.TurnFlow.PressureTideStartRound;
 
+    /// <summary>起始领袖生命 (docs/26 追加, 甘泉杂役): the ceiling <see cref="Engine.ResolutionContext.HealLeader"/>
+    /// tops up to — a leader can be restored to where it began but never pushed above it. Set from
+    /// <see cref="Engine.MatchConfig.LeaderHp"/>; an old snapshot lacking the field keeps the standard 25.</summary>
+    public int LeaderHpMax { get; set; } = Engine.MatchConfig.DefaultLeaderHp;
+
     public List<UnitInstance> Units { get; set; } = new();
 
     /// <summary>格子状态 (docs/21 §1.6): 烟幕区 / 烬火陷阱. Old snapshots without this field deserialize to empty.</summary>
@@ -377,6 +382,7 @@ public sealed class GameState
         NextEntityId = NextEntityId,
         EventSequence = EventSequence,
         PressureTideStartRound = PressureTideStartRound,
+        LeaderHpMax = LeaderHpMax,
         Units = Units.Select(u => u.Clone()).ToList(),
         CellStates = CellStates.Select(c => c.Clone()).ToList(),
         Players = Players.Select(p => p.Clone()).ToArray(),

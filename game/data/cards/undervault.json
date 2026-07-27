@@ -595,8 +595,8 @@
     "type": "unit",
     "rarity": "rare",
     "cost": 4,
-    "atk": 2,
-    "hp": 4,
+    "atk": 3,
+    "hp": 3,
     "keywords": [
       {
         "keyword": "range",

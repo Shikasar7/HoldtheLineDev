@@ -102,8 +102,17 @@ public static class RulesInfo
     /// EFFECT a seat resolves (not per unit hit) after the death sweep, with a re-entrancy latch; and boost_range
     /// now grants min(printed range (melee = 1) + N, 4) instead of "current range + N", so it cannot stack with
     /// itself and cannot push a 炮台 past its 总射程上限. Old command logs replay unchanged (no serialized shape
-    /// moved). DataHash changes — client + server + version.json must ship this same data.</remarks>
-    public const string Version = "0.15.0";
+    /// moved). DataHash changes — client + server + version.json must ship this same data.
+    /// 0.16.0 (2026-07-27): 数值核对修正 (docs/26 追加). New primitive **heal_leader** + LeaderHealedEvent:
+    /// 甘泉杂役 no longer heals a minion (2 费回 3 压过了 3 费回 2 的 战地医师/抢修工兵 —— 同类效果倒挂) and
+    /// instead tops up the CASTER's leader, capped at GameState.LeaderHpMax (= the match's starting leader HP,
+    /// so 教学关的 5 血局也跟着走). This is the pool's FIRST effect that touches leader HP. 穿云铳手 2/4 → 3/3:
+    /// it was byte-identical to 中立 神射手 (4 费 2/4 射程3 稀有), now a distinct aggressive statline.
+    /// GameState gains LeaderHpMax (additive — old snapshots default to 25; Clone updated). The new event is
+    /// additive on the wire, and the handshake's rules/data gate already keeps old clients out.
+    /// DataHash changes — client + server + version.json must ship this same data.
+    /// </remarks>
+    public const string Version = "0.16.0";
 
     /// <summary>压力潮汐 start round, forwarded from the (internal) <see cref="Engine.TurnFlow"/> so the client
     /// HUD can show the tide countdown (docs/17) without hardcoding 8 and drifting from the rule. Read-only
